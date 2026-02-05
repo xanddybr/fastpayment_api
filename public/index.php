@@ -131,19 +131,20 @@
 
         // Eventos (Cursos)
         $app->group('/events', function ($group) {
-            $group->get('', \App\Controllers\EventController::class . ':listEvent');
-            $group->post('', \App\Controllers\EventController::class . ':storeEvent');
-            $group->delete('/{id}', \App\Controllers\EventController::class . ':deleteEvent');
+            $group->get('', \App\Controllers\EventController::class . ':list');
+            $group->post('', \App\Controllers\EventController::class . ':store');
+            $group->delete('/{id}', \App\Controllers\EventController::class . ':delete');
         })->add($adminMiddleware);
 
         $app->group('/event-types', function ($group) {
             $group->get('', \App\Controllers\EventTypeController::class . ':list');
             $group->post('', \App\Controllers\EventTypeController::class . ':store');
+            $group->delete('/{id}', \App\Controllers\EventTypeController::class . ':delete'); // <--- ADICIONE ESTA LINHA
         })->add($adminMiddleware);
         
         // Agendas (Schedules)
         $app->group('/schedules', function ($group) {
-            $group->get('', \App\Controllers\ScheduleController::class . ':listSchedules');
+            $group->get('', \App\Controllers\ScheduleController::class . ':listAvailableSchedules');
             $group->post('', \App\Controllers\ScheduleController::class . ':store');
             $group->delete('/{id}', \App\Controllers\ScheduleController::class . ':delete');
         })->add($adminMiddleware);

@@ -1,23 +1,37 @@
 <?php
 namespace App\Controllers;
+
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\Unit;
 use App\Config\Database;
+use App\Utils\Slugger;
 use Exception;
 
 class UnitController {
+
+    use Slugger;
+
+    // 1. Defina a propriedade privada
+    private $db;
+
+    // 2. Inicialize a conexão no construtor (mais limpo e eficiente)
+    public function __construct() {
+        $this->db = Database::getConnection();
+    }
+
+    private function jsonResponse(Response $response, $data, $status = 200) {
+        $response->getBody()->write(json_encode($data));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+    }
+
     public function list(Request $request, Response $response) {
         try {
-            $db = (new Database())->getConnection();
-            $unitModel = new Unit($db);
+            $unitModel = new Unit($this->db);
             $units = $unitModel->getAll();
-            
-            $response->getBody()->write(json_encode($units ?: []));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            return $this->jsonResponse($response, $units ?: []);
         } catch (Exception $e) {
-            $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "Falha ao listar unidades."]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Falha ao listar."], 500);
         }
     }
 
@@ -27,45 +41,36 @@ class UnitController {
             $name = $data['name'] ?? '';
 
             if (empty($name)) {
-                $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "O nome da unidade é obrigatório."]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "O nome é obrigatório."], 400);
             }
 
-            $db = (new Database())->getConnection();
-            $unitModel = new Unit($db);
+            // CORREÇÃO AQUI: Agora usamos $this->db que foi carregado no construtor
+            $slug = $this->generateUniqueSlug($name, 'units', $this->db);
             
-            if ($unitModel->create($name)) {
-                $response->getBody()->write(json_encode(["status" => "sucesso", "mensagem" => "Unidade cadastrada com sucesso."]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+            $unitModel = new Unit($this->db);
+            if ($unitModel->create($name, $slug)) {
+                return $this->jsonResponse($response, ["status" => "sucesso", "slug" => $slug], 201);
             }
             
             throw new Exception("Erro ao inserir no banco.");
         } catch (Exception $e) {
-            $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "Não foi possível salvar a unidade."]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            // Dica: Adicione $e->getMessage() para debugar o erro real se falhar novamente
+            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
         }
     }
 
     public function delete(Request $request, Response $response, array $args) {
         try {
             $id = $args['id'];
-            $db = (new Database())->getConnection();
+            $unitModel = new Unit($this->db);
             
-            // Verifica se existe antes de deletar
-            $stmt = $db->prepare("DELETE FROM units WHERE id = :id");
-            $stmt->bindParam(":id", $id);
-            $stmt->execute();
-
-            if ($stmt->rowCount() === 0) {
-                $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "Unidade nao encontrada."]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            if ($unitModel->delete($id)) {
+                return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Removida com sucesso."]);
             }
 
-            $response->getBody()->write(json_encode(["status" => "sucesso", "mensagem" => "Unidade removida com sucesso."]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Não encontrada."], 404);
         } catch (Exception $e) {
-            $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "Nao e possivel deletar: unidade pode estar vinculada a um evento."]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Erro ao deletar: verifique se há vínculos."], 400);
         }
     }
 }
