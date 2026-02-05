@@ -82,47 +82,83 @@ class ScheduleController {
         }
     }
     
-    public function listAvailableSchedules(Request $request, Response $response) {
-        try {
-            $this->closeExpiredSchedulesInternal();
-            
-            $queryParams = $request->getQueryParams();
-            $eventSlug = $queryParams['slug'] ?? null;
-            $typeSlug  = $queryParams['type'] ?? null;
+// Rota Administrativa: Lista TUDO (incluindo expirados)
+    public function listAdminSchedules(Request $request, Response $response) {
+    try {
+        // Garante que agendamentos que passaram do horário mudem para 'expired'
+        $this->closeExpiredSchedulesInternal();
 
-            $sql = "SELECT 
-                        s.id as schedule_id, 
-                        e.name as event_name, 
-                        e.price as event_price, -- ADICIONE ESTA LINHA AQUI
-                        et.name as type_name, 
-                        u.name as unit_name, 
-                        s.scheduled_at, 
-                        s.vacancies,
-                        e.slug
-                    FROM schedules s
-                    JOIN events e ON s.event_id = e.id
-                    JOIN units u ON s.unit_id = u.id
-                    JOIN event_types et ON s.event_type_id = et.id
-                    WHERE s.status = 'available'";
+        // SQL SEM o filtro de status 'available' para o Admin ver o histórico
+        $sql = "SELECT 
+                    s.id as schedule_id, 
+                    e.name as event_name, 
+                    e.price as event_price,
+                    et.name as type_name, 
+                    u.name as unit_name, 
+                    s.scheduled_at, 
+                    s.vacancies,
+                    s.status,
+                    e.slug
+                FROM schedules s
+                JOIN events e ON s.event_id = e.id
+                JOIN units u ON s.unit_id = u.id
+                JOIN event_types et ON s.event_type_id = et.id
+                ORDER BY s.scheduled_at DESC"; // Ordenado pelos mais recentes
 
-            if ($eventSlug) {
-                $sql .= " AND e.slug = :eventSlug";
-            }
-            if ($typeSlug) {
-                $sql .= " AND et.slug = :typeSlug";
-            }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        
+        return $this->jsonResponse($response, $stmt->fetchAll(PDO::FETCH_ASSOC));
 
-            $stmt = $this->db->prepare($sql);
-            if ($eventSlug) $stmt->bindValue(':eventSlug', $eventSlug);
-            if ($typeSlug)  $stmt->bindValue(':typeSlug', $typeSlug);
-
-            $stmt->execute();
-            return $this->jsonResponse($response, $stmt->fetchAll(PDO::FETCH_ASSOC));
-
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
-        }
+    } catch (Exception $e) {
+        return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
     }
+}
+
+    public function listAvailableSchedules(Request $request, Response $response) {
+    try {
+        $this->closeExpiredSchedulesInternal();
+        
+        $queryParams = $request->getQueryParams();
+        // Pegamos o slug e garantimos que ele esteja em minúsculo
+        $eventSlug = isset($queryParams['slug']) ? strtolower(trim($queryParams['slug'])) : null;
+
+        $sql = "SELECT 
+                    s.id as schedule_id, 
+                    e.name as event_name, 
+                    e.price as event_price,
+                    et.name as type_name, 
+                    u.name as unit_name, 
+                    s.scheduled_at, 
+                    s.vacancies,
+                    e.slug,
+                    s.status
+                FROM schedules s
+                JOIN events e ON s.event_id = e.id
+                JOIN units u ON s.unit_id = u.id
+                JOIN event_types et ON s.event_type_id = et.id
+                WHERE s.status = 'available'"; // Garanta que o status no banco seja EXATAMENTE 'available'
+
+        if (!empty($eventSlug)) {
+            // Usamos LOWER no banco para garantir a comparação
+            $sql .= " AND LOWER(e.slug) = :eventSlug";
+        }
+
+        $stmt = $this->db->prepare($sql);
+
+        if (!empty($eventSlug)) {
+            $stmt->bindValue(':eventSlug', $eventSlug);
+        }
+
+        $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $this->jsonResponse($response, $results);
+
+    } catch (Exception $e) {
+        return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+    }
+}
 
     public function closeExpiredSchedulesInternal() {
         try {

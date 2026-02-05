@@ -144,7 +144,7 @@
         
         // Agendas (Schedules)
         $app->group('/schedules', function ($group) {
-            $group->get('', \App\Controllers\ScheduleController::class . ':listAvailableSchedules');
+            $group->get('', \App\Controllers\ScheduleController::class . ':listAdminSchedules');
             $group->post('', \App\Controllers\ScheduleController::class . ':store');
             $group->delete('/{id}', \App\Controllers\ScheduleController::class . ':delete');
         })->add($adminMiddleware);
