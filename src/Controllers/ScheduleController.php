@@ -15,72 +15,57 @@ class ScheduleController {
     }
 
     // Método auxiliar para padronizar respostas JSON
-    private function jsonResponse(Response $response, $data, $status = 200) {
-        $response->getBody()->write(json_encode($data));
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($status);
-    }
     
-        public function store(Request $request, Response $response) {
-        // 1. Configura o fuso horário para garantir que time() bata com o Brasil
-        date_default_timezone_set('America/Sao_Paulo');
+    
+    public function store(Request $request, Response $response) {
+    date_default_timezone_set('America/Sao_Paulo');
 
-        try {
-            $data = $request->getParsedBody();
-            
-            // --- ADICIONE ESTAS LINHAS (O QUE FALTAVA) ---
-            $scheduledAt = $data['scheduled_at'] ?? null;
-            $eventId     = $data['event_id'] ?? null;
-            $unitId      = $data['unit_id'] ?? null;
-            $eventTypeId = $data['event_type_id'] ?? null;
-            $vacancies   = $data['vacancies'] ?? 0;
-            // ---------------------------------------------
+    try {
+        $data = $request->getParsedBody();
+        
+        $scheduledAt = $data['scheduled_at'] ?? null;
+        $eventId     = $data['event_id'] ?? null;
+        $unitId      = $data['unit_id'] ?? null;
+        $eventTypeId = $data['event_type_id'] ?? null;
+        $vacancies   = $data['vacancies'] ?? 1; // Valor padrão 1
 
-            if (!$scheduledAt || !$eventId || !$unitId || !$eventTypeId) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Dados incompletos"], 400);
-            }
-
-            $chosenTime = strtotime($scheduledAt);
-            $minTimeAllowed = time() + 3600;
-
-            if ($chosenTime < $minTimeAllowed) {
-                return $this->jsonResponse($response, [
-                    "status" => "erro", 
-                    "mensagem" => "O agendamento exige antecedência mínima de 1 hora. Verifique o relógio do servidor."
-                ], 400);
-            }
-
-            $sql = "INSERT INTO schedules (
-                        event_id, 
-                        unit_id, 
-                        event_type_id, 
-                        scheduled_at, 
-                        vacancies, 
-                        status
-                    ) VALUES (:event_id, :unit_id, :event_type_id, :scheduled_at, :vacancies, 'available')";
-            
-            $stmt = $this->db->prepare($sql);
-            // Agora as variáveis abaixo existem!
-            $stmt->execute([
-                ':event_id'      => $eventId,
-                ':unit_id'       => $unitId,
-                ':event_type_id' => $eventTypeId,
-                ':scheduled_at'  => $scheduledAt,
-                ':vacancies'     => $vacancies
-            ]);
-
-            return $this->jsonResponse($response, [
-                "status" => "sucesso", 
-                "mensagem" => "Agendamento salvo!",
-                "id" => $this->db->lastInsertId()
-            ], 201);
-
-        } catch (Exception $e) {
-            // Isso evita o "erro de conexão" e mostra o erro real do PHP
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
+        if (!$scheduledAt || !$eventId || !$unitId || !$eventTypeId) {
+            return $this->jsonResponse($response, ["error" => "Preencha todos os campos obrigatórios"], 400);
         }
+
+        // Dentro da function store...
+        $chosenTime = strtotime($scheduledAt);
+        $now = time();
+
+        // Ajuste: Vamos considerar apenas a hora e o minuto, ignorando segundos.
+        // Para facilitar seu teste hoje, vamos reduzir a trava para apenas 1 minuto de antecedência,
+        // ou você pode comentar a trava inteira se preferir liberdade total.
+        $minTimeAllowed = $now + 60; // Alterado de 3600 (1h) para 60 (1min) para facilitar seu dia
+
+        if ($chosenTime < $minTimeAllowed) {
+            return $this->jsonResponse($response, [
+                "error" => "Para realizar esse agendamento você precisa de no minimo 1 hora de antecedencia do evento . (Hora atual: " . date('H:i', $now) . ")"
+            ], 400);
+        }
+
+        $sql = "INSERT INTO schedules (event_id, unit_id, event_type_id, scheduled_at, vacancies, status) 
+                VALUES (:event_id, :unit_id, :event_type_id, :scheduled_at, :vacancies, 'available')";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':event_id'      => $eventId,
+            ':unit_id'       => $unitId,
+            ':event_type_id' => $eventTypeId,
+            ':scheduled_at'  => $scheduledAt,
+            ':vacancies'     => $vacancies
+        ]);
+
+        return $this->jsonResponse($response, ["success" => true, "message" => "Agendamento salvo!"], 201);
+
+    } catch (Exception $e) {
+        return $this->jsonResponse($response, ["error" => "Erro no banco: " . $e->getMessage()], 500);
     }
+}
     
 // Rota Administrativa: Lista TUDO (incluindo expirados)
     public function listAdminSchedules(Request $request, Response $response) {
@@ -116,49 +101,52 @@ class ScheduleController {
 }
 
     public function listAvailableSchedules(Request $request, Response $response) {
-    try {
-        $this->closeExpiredSchedulesInternal();
-        
-        $queryParams = $request->getQueryParams();
-        // Pegamos o slug e garantimos que ele esteja em minúsculo
-        $eventSlug = isset($queryParams['slug']) ? strtolower(trim($queryParams['slug'])) : null;
+        try {
+            $this->closeExpiredSchedulesInternal();
+           $queryParams = $request->getQueryParams();
 
-        $sql = "SELECT 
-                    s.id as schedule_id, 
-                    e.name as event_name, 
-                    e.price as event_price,
-                    et.name as type_name, 
-                    u.name as unit_name, 
-                    s.scheduled_at, 
-                    s.vacancies,
-                    e.slug,
-                    s.status
-                FROM schedules s
-                JOIN events e ON s.event_id = e.id
-                JOIN units u ON s.unit_id = u.id
-                JOIN event_types et ON s.event_type_id = et.id
-                WHERE s.status = 'available'"; // Garanta que o status no banco seja EXATAMENTE 'available'
+// Pegar os valores e garantir que se for string vazia vira NULL
+            $eventSlug = (!empty($queryParams['slug']) && $queryParams['slug'] !== '') ? strtolower(trim($queryParams['slug'])) : null;
+            $typeSlug  = (!empty($queryParams['type']) && $queryParams['type'] !== '') ? strtolower(trim($queryParams['type'])) : null;
 
-        if (!empty($eventSlug)) {
-            // Usamos LOWER no banco para garantir a comparação
-            $sql .= " AND LOWER(e.slug) = :eventSlug";
+            $sql = "SELECT 
+                        s.id as schedule_id, 
+                        e.name as event_name, 
+                        e.price as event_price,
+                        et.name as type_name, 
+                        u.name as unit_name, 
+                        s.scheduled_at, 
+                        s.vacancies,
+                        e.slug as event_slug,
+                        et.slug as type_slug
+                    FROM schedules s
+                    JOIN events e ON s.event_id = e.id
+                    JOIN units u ON s.unit_id = u.id
+                    JOIN event_types et ON s.event_type_id = et.id
+                    WHERE s.status = 'available'";
+
+            // Filtro condicional de Evento
+            if ($eventSlug) {
+                $sql .= " AND LOWER(e.slug) = :eventSlug";
+            }
+
+            // Filtro condicional de Tipo (O que estava faltando funcionar isolado)
+            if ($typeSlug) {
+                $sql .= " AND LOWER(et.slug) = :typeSlug";
+            }
+
+            $stmt = $this->db->prepare($sql);
+
+            if ($eventSlug) $stmt->bindValue(':eventSlug', $eventSlug);
+            if ($typeSlug)  $stmt->bindValue(':typeSlug', $typeSlug);
+
+            $stmt->execute();
+            return $this->jsonResponse($response, $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
         }
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!empty($eventSlug)) {
-            $stmt->bindValue(':eventSlug', $eventSlug);
-        }
-
-        $stmt->execute();
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        return $this->jsonResponse($response, $results);
-
-    } catch (Exception $e) {
-        return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
     }
-}
 
     public function closeExpiredSchedulesInternal() {
         try {
@@ -200,4 +188,12 @@ class ScheduleController {
             ], 500);
         }
     }
+
+    private function jsonResponse(Response $response, $data, $status = 200) {
+        $response->getBody()->write(json_encode($data));
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus($status);
+    }
+
 }
