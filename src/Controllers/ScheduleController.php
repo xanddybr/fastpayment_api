@@ -68,7 +68,8 @@ class ScheduleController {
 }
     
 // Rota Administrativa: Lista TUDO (incluindo expirados)
-    public function listAdminSchedules(Request $request, Response $response) {
+    // Rota Administrativa: Lista TUDO (incluindo expirados)
+public function listAdminSchedules(Request $request, Response $response) {
     try {
         // Garante que agendamentos que passaram do horário mudem para 'expired'
         $this->closeExpiredSchedulesInternal();
