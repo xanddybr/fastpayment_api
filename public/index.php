@@ -14,6 +14,7 @@
         use Psr\Http\Message\ServerRequestInterface as Request;
         use Slim\Factory\AppFactory;
         use App\Controllers\ScheduleController;
+        use App\Controllers\PersonController;
         use Slim\Exception\HttpNotFoundException;
         use Dotenv\Dotenv;
 
@@ -76,19 +77,19 @@
             return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
         });
 
-        //Rotas para dashboard
+        // Rotas para dashboard
         $app->get('/api/admin/dashboard', \App\Controllers\RegistrationController::class . ':dashboardStats');
         
         // Rota que o Cron Job vai "bater"
         $app->get('/api/schedules/cleanup', [ScheduleController::class, 'closeExpiredSchedules']);
 
-        // 5.1 & 5.2 - Listagem de Cards na Agenda
+        // Listagem de Cards na Agenda
         $app->get('/api/schedules', \App\Controllers\ScheduleController::class . ':listAvailableSchedules');
 
-        // 5.3 & 5.4 - Identificação e Geração de OTP
+        // Identificação e Geração de OTP
         $app->post('/generate-email-code', \App\Controllers\AuthController::class . ':generateValidationCode');
 
-        // 5.5 - Validação do Código
+        // Validação do Código
         $app->post('/validate-code', \App\Controllers\AuthController::class . ':validateCode');
 
         // 5.6 & 5.7 - Geração do Checkout Mercado Pago
@@ -108,18 +109,18 @@
         // -----------------------------------------------------------------------------
 
         $app->post('/login', \App\Controllers\AuthController::class . ':login');
-
+        $app->post('/logout', \App\Controllers\AuthController::class . ':logout');
         // -----------------------------------------------------------------------------
         // 9. GRUPOS ADMINISTRATIVOS (PROTEGIDOS POR SESSION)
         // -----------------------------------------------------------------------------
         $adminMiddleware = new \App\Middlewares\SessionMiddleware();
 
         // Usuários
-        $app->group('/users', function ($group) {
-            $group->get('/list', \App\Controllers\AuthController::class . ':listUsers');
-            $group->post('/register', \App\Controllers\AuthController::class . ':register');
-            $group->delete('/{id}', \App\Controllers\AuthController::class . ':deleteUser');
-            $group->post('/logout', \App\Controllers\AuthController::class . ':logout');
+        $app->group('/person', function ($group) {
+            $group->get('/list', \App\Controllers\PersonController::class . ':listAll');
+            $group->post('/create', \App\Controllers\PersonController::class . ':createAdmin');
+            $group->post('/update/{id}', \App\Controllers\PersonController::class . ':update');
+            $group->delete('/{id}', \App\Controllers\PersonController::class . ':remove');
         })->add($adminMiddleware);
 
         // Unidades

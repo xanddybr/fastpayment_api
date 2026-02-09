@@ -3,7 +3,6 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use App\Config\Database;
 use App\Models\EventType;
 use App\Utils\Slugger;
 use Exception; // Importação necessária para o catch funcionar
@@ -12,12 +11,11 @@ class EventTypeController {
 
     use Slugger;
 
-    // 1. ADICIONE A PROPRIEDADE
-    private $db;
+    private $eventModel;
 
     // 2. ADICIONE O CONSTRUTOR PARA INICIALIZAR O DB
     public function __construct() {
-        $this->db = Database::getConnection();
+        $this->eventModel = new EventType();
     }
 
     // --- TIPOS DE EVENTO (Workshop, Palestra, etc) ---

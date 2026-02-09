@@ -148,8 +148,6 @@ CREATE TABLE `person_details` (
   `number` int DEFAULT NULL,
   `neighborhood` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `obs_motived` text COLLATE utf8mb4_unicode_ci,
-  `first_time` tinyint(1) DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

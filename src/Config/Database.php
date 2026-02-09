@@ -3,32 +3,35 @@ namespace App\Config;
 
 use PDO;
 use PDOException;
+use Exception;
 
 class Database {
-    public static function getConnection() {
-        // Variáveis locais para método estático (Correto!)
-        $host = "localhost";
-        $db_name = "u967889760_fastpayment";
-        $username = "u967889760_fast";
-        $password = "Mistura#1";
+    private static $instance = null;
 
-        try {
-            // Conexão PDO
-            $conn = new PDO("mysql:host=$host;dbname=$db_name;charset=utf8mb4", $username, $password);
-            
-            // 1. Configura fuso horário no MySQL (Importante para o NOW() funcionar com horários de Brasília)
-            $conn->exec("SET time_zone='-03:00';");
-            
-            // 2. Garante que o PHP capture erros do SQL como Exceções (Crítico para Transações)
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            
-            // 3. Opcional: Desativa emulação de prepares para maior segurança
-            $conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-            
-            return $conn;
-        } catch(PDOException $e) {
-            // Lança a exceção para ser tratada pelo Controller
-            throw new \Exception("Erro na conexão: " . $e->getMessage());
+    public static function getConnection() {
+        if (self::$instance === null) {
+            try {
+                // Carrega as variáveis de ambiente ou usa valores padrão
+                $host = $_ENV['DB_HOST'] ?? 'localhost';
+                $db   = $_ENV['DB_NAME'] ?? 'u967889760_fastpayment';
+                $user = $_ENV['DB_USER'] ?? 'u967889760_fast';
+                $pass = $_ENV['DB_PASS'] ?? 'Mistura#1';
+                $port = $_ENV['DB_PORT'] ?? '3306';
+
+                $dsn = "mysql:host=$host;dbname=$db;port=$port;charset=utf8mb4";
+                
+                $options = [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES   => false,
+                    PDO::ATTR_PERSISTENT         => true // Importante para SaaS: mantém conexões abertas para reuso
+                ];
+
+                self::$instance = new PDO($dsn, $user, $pass, $options);
+            } catch (PDOException $e) {
+                throw new Exception("Erro de conexão: " . $e->getMessage());
+            }
         }
+        return self::$instance;
     }
 }
