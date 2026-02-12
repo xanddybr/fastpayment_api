@@ -53,26 +53,6 @@
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         });
 
-        // -----------------------------------------------------------------------------
-        // 7. ROTAS PÚBLICAS (FLUXO DO ALUNO - FASTPAYMENT)
-        // -----------------------------------------------------------------------------
-
-        $app->get('/debug-db', function ($request, $response) {
-            $db = $_ENV['DB_PASS'];
-            $response->getBody()->write("Banco Conectado! ID da Instância: " . $db);
-            return $response;
-        });
-
-        $app->get('/debug-env', function ($request, $response) {
-    // 1. Pegamos o valor (usando o plano B caso esteja vazio)
-            $usuario = $_ENV['DB_USER'] ?? 'Variável DB_USER não encontrada no .env';
-            
-            // 2. Escrevemos no corpo da resposta (padrão PSR-7)
-            $response->getBody()->write("Resultado do teste: " . $usuario);
-            
-            // 3. Retornamos o objeto response alterado
-            return $response;
-        });
 
         // Rotas para dashboard
         $app->get('/api/admin/dashboard', \App\Controllers\RegistrationController::class . ':dashboardStats');

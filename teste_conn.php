@@ -3,6 +3,12 @@ require __DIR__ . '/vendor/autoload.php';
 
 use App\Config\Database;
 
+if (file_exists(__DIR__ . '/.env')) {
+    // O UnsafeImmutable permite que o Dotenv use putenv() e popule o getenv()
+    $dotenv = \Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
+    $dotenv->load();
+}
+
 try {
     $db1 = Database::getConnection();
     $db2 = Database::getConnection();

@@ -14,11 +14,11 @@ class Database {
         if (self::$instance === null) {
             try {
                 // Tentamos ler do $_ENV. Se não existir, usamos o valor padrão (seu root local)
-                $host = $_ENV['DB_HOST'] ?? '127.0.0.1';
-                $db   = $_ENV['DB_NAME'] ?? 'u967889760_fastpayment';
-                $user = $_ENV['DB_USER'] ?? 'root';
-                $pass = $_ENV['DB_PASS'] ?? 'Mistura#1'; // Senha vazia para o seu root local
-                $port = $_ENV['DB_PORT'] ?? '3306';
+                $host = $_ENV['DB_HOST'];
+                $db   = $_ENV['DB_NAME'];
+                $user = $_ENV['DB_USER'];
+                $pass = $_ENV['DB_PASS'];
+                $port = $_ENV['DB_PORT']; 
 
                 $dsn = "mysql:host=$host;dbname=$db;port=$port;charset=utf8mb4";
                 
