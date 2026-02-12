@@ -3,7 +3,7 @@
         'name' => '__root__',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '185d45cb4df7153606139815df2ffc95fa428982',
+        'reference' => '26fab7b7b7bf19038f674ecd405941228d023b3f',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         '__root__' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '185d45cb4df7153606139815df2ffc95fa428982',
+            'reference' => '26fab7b7b7bf19038f674ecd405941228d023b3f',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -92,9 +92,9 @@
             'dev_requirement' => false,
         ),
         'giggsey/libphonenumber-for-php' => array(
-            'pretty_version' => '9.0.22',
-            'version' => '9.0.22.0',
-            'reference' => '38fbbbf512928c5dbc1c11d9501784beb788ed55',
+            'pretty_version' => '9.0.23',
+            'version' => '9.0.23.0',
+            'reference' => 'c415b68b44f8f6d7bb0de79769de8b2189d8a055',
             'type' => 'library',
             'install_path' => __DIR__ . '/../giggsey/libphonenumber-for-php',
             'aliases' => array(),
@@ -103,7 +103,7 @@
         'giggsey/libphonenumber-for-php-lite' => array(
             'dev_requirement' => false,
             'replaced' => array(
-                0 => '9.0.22',
+                0 => '9.0.23',
             ),
         ),
         'giggsey/locale' => array(
@@ -125,9 +125,9 @@
             'dev_requirement' => false,
         ),
         'laravel/serializable-closure' => array(
-            'pretty_version' => 'v2.0.8',
-            'version' => '2.0.8.0',
-            'reference' => '7581a4407012f5f53365e11bafc520fd7f36bc9b',
+            'pretty_version' => 'v2.0.9',
+            'version' => '2.0.9.0',
+            'reference' => '8f631589ab07b7b52fead814965f5a800459cb3e',
             'type' => 'library',
             'install_path' => __DIR__ . '/../laravel/serializable-closure',
             'aliases' => array(),

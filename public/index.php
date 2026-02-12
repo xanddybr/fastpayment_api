@@ -3,11 +3,21 @@
         header("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS, PUT");
         header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
         header("Access-Control-Allow-Credentials: true");
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
 
-        // Muito importante: responder 200 OK para o navegador nas requisições OPTIONS
-        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-            http_response_code(200);
-            exit;
+        // 3. SESSÃO E COOKIES
+        ini_set('session.cookie_lifetime', 0);
+        ini_set('session.gc_maxlifetime', 600);
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        require __DIR__ . '/../vendor/autoload.php';
+
+        if (file_exists(__DIR__ . '/../.env')) {
+            $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+            $dotenv->load();
         }
 
         use Psr\Http\Message\ResponseInterface as Response;
@@ -18,24 +28,9 @@
         use Slim\Exception\HttpNotFoundException;
         use Dotenv\Dotenv;
 
-        // 1. CARREGAR AUTOLOAD (OBRIGATÓRIO SER O PRIMEIRO)
-        require __DIR__ . '/../vendor/autoload.php';
-
-        // 2. CONFIGURAÇÕES DE AMBIENTE E ERROS
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
-
-        // Carrega o .env da raiz da pasta /api
-        if (file_exists(__DIR__ . '/../.env')) {
-            $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
-            $dotenv->load();
-        }
-
-        // 3. SESSÃO E COOKIES
-        ini_set('session.cookie_lifetime', 0);
-        ini_set('session.gc_maxlifetime', 600);
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+            http_response_code(200);
+            exit;
         }
 
         // 4. INSTANCIAR O APP
@@ -45,12 +40,7 @@
         $app->addBodyParsingMiddleware();
         $app->addRoutingMiddleware();
 
-
-        // Resposta para o pre-flight do navegador (OPTIONS)
-        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-            exit;
-        }
-                // Trata requisições OPTIONS (Pre-flight)
+        // Trata requisições OPTIONS (Pre-flight)
         $app->options('/{routes:.+}', function ($request, $response, $args) {
             return $response;
         });
@@ -58,8 +48,8 @@
         // 6. CONFIGURAÇÃO DE ERROS (JSON)
         $errorMiddleware = $app->addErrorMiddleware(true, true, true);
         $errorMiddleware->setErrorHandler(HttpNotFoundException::class, function (Request $request) use ($app) {
-            $response = $app->getResponseFactory()->createResponse();
-            $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "Rota nao encontrada."]));
+        $response = $app->getResponseFactory()->createResponse();
+        $response->getBody()->write(json_encode(["status" => "erro", "mensagem" => "Rota nao encontrada."]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         });
 
@@ -67,14 +57,21 @@
         // 7. ROTAS PÚBLICAS (FLUXO DO ALUNO - FASTPAYMENT)
         // -----------------------------------------------------------------------------
 
-        $app->get('/api/auth/check', function ($request, $response) {
-            if (isset($_SESSION['user_id'])) {
-                $response->getBody()->write(json_encode(["status" => "autenticado"]));
-                return $response->withHeader('Content-Type', 'application/json');
-            }
+        $app->get('/debug-db', function ($request, $response) {
+            $db = $_ENV['DB_PASS'];
+            $response->getBody()->write("Banco Conectado! ID da Instância: " . $db);
+            return $response;
+        });
+
+        $app->get('/debug-env', function ($request, $response) {
+    // 1. Pegamos o valor (usando o plano B caso esteja vazio)
+            $usuario = $_ENV['DB_USER'] ?? 'Variável DB_USER não encontrada no .env';
             
-            $response->getBody()->write(json_encode(["status" => "nao_autenticado"]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+            // 2. Escrevemos no corpo da resposta (padrão PSR-7)
+            $response->getBody()->write("Resultado do teste: " . $usuario);
+            
+            // 3. Retornamos o objeto response alterado
+            return $response;
         });
 
         // Rotas para dashboard
