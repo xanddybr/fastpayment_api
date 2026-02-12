@@ -30,8 +30,34 @@ class PersonController {
     }
 
     /**
-     * Cria um novo usuário ou Admin (POST /api/admin/person/create)
+     * BUSCAR POR ID: Retorna um único usuário com seus detalhes (GET /person/{id})
      */
+    public function show(Request $request, Response $response, array $args) {
+        try {
+            $id = $args['id'];
+            
+            // Chama o método findById que você já tem no Model
+            $person = $this->personModel->findById($id);
+
+            // Se não encontrar o registro, retorna erro 404
+            if (!$person) {
+                return $this->jsonResponse($response, [
+                    "status" => "erro",
+                    "mensagem" => "Usuário não encontrado."
+                ], 404);
+            }
+
+            // Retorna os dados do usuário encontrado
+            return $this->jsonResponse($response, $person);
+
+        } catch (\Exception $e) {
+            return $this->jsonResponse($response, [
+                "status" => "erro",
+                "mensagem" => "Erro ao buscar usuário: " . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function createAdmin(Request $request, Response $response) {
         try {
             $data = $request->getParsedBody();

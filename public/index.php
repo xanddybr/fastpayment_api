@@ -24,7 +24,6 @@
         use Psr\Http\Message\ServerRequestInterface as Request;
         use Slim\Factory\AppFactory;
         use App\Controllers\ScheduleController;
-        use App\Controllers\PersonController;
         use Slim\Exception\HttpNotFoundException;
         use Dotenv\Dotenv;
 
@@ -94,10 +93,11 @@
 
         // Usuários
         $app->group('/person', function ($group) {
-            $group->get('/list', [PersonController::class, 'listAll']);
-            $group->post('/create', [PersonController::class, 'createAdmin']);
-            $group->put('/update/{id}', [PersonController::class, 'update']);
-            $group->delete('/{id}', [PersonController::class, 'remove']);
+            $group->get('/list', \App\Controllers\PersonController::class . ':listAll');
+            $group->get('/{id}', \App\Controllers\PersonController::class . ':show');
+            $group->post('/create', \App\Controllers\PersonController::class . ':createAdmin');
+            $group->put('/update/{id}', \App\Controllers\PersonController::class . ':update');
+            $group->delete('/{id}', \App\Controllers\PersonController::class . ':remove');
         })->add($adminMiddleware);
 
         // Unidades

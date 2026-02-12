@@ -5,32 +5,25 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\EventType;
 use App\Utils\Slugger;
-use Exception; // Importação necessária para o catch funcionar
+use Exception;
 
 class EventTypeController {
 
     use Slugger;
 
-    private $eventModel;
+    private $eventTypeModel;
 
-    // 2. ADICIONE O CONSTRUTOR PARA INICIALIZAR O DB
     public function __construct() {
-        $this->eventModel = new EventType();
+        // Inicializa o model que já resolve a conexão sozinho
+        $this->eventTypeModel = new EventType();
     }
 
-    // --- TIPOS DE EVENTO (Workshop, Palestra, etc) ---
     public function list(Request $request, Response $response) {
         try {
-            // Agora $this->db existe e funciona!
-            $model = new EventType($this->db);
-            $types = $model->getAll();
-            
+            $types = $this->eventTypeModel->getAll();
             return $this->jsonResponse($response, $types ?: []);
         } catch (Exception $e) {
-            return $this->jsonResponse($response, [
-                "status" => "erro", 
-                "mensagem" => "Erro ao listar tipos: " . $e->getMessage()
-            ], 500);
+            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
         }
     }
 
@@ -40,15 +33,13 @@ class EventTypeController {
             $name = $data['name'] ?? null;
 
             if (empty($name)) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Nome do tipo é obrigatório."], 400);
+                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Nome é obrigatório."], 400);
             }
 
-            // 3. GERAÇÃO DO SLUG (Usando o Trait que você adicionou)
-            $slug = $this->generateUniqueSlug($name, 'event_types', $this->db);
+            // Usamos a conexão do Singleton para o Slugger
+            $slug = $this->generateUniqueSlug($name, 'event_types', $this->eventTypeModel->getConnection());
 
-            $model = new EventType($this->db);
-            // Certifique-se que seu Model EventType aceita o slug no método create
-            $model->create($name, $slug);
+            $this->eventTypeModel->create($name, $slug);
 
             return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Tipo de evento criado."], 201);
         } catch (Exception $e) {
@@ -59,21 +50,20 @@ class EventTypeController {
     public function delete(Request $request, Response $response, array $args) {
         try {
             $id = $args['id'];
-            $stmt = $this->db->prepare("DELETE FROM event_types WHERE id = :id");
-            $stmt->bindParam(":id", $id);
-            $stmt->execute();
-
-            if ($stmt->rowCount() === 0) {
+            
+            // Verifica se existe antes de tentar deletar
+            $type = $this->eventTypeModel->findById($id);
+            if (!$type) {
                 return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Tipo não encontrado."], 404);
             }
 
+            $this->eventTypeModel->delete($id);
             return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Tipo removido."]);
         } catch (Exception $e) {
             return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 400);
         }
     }
 
-    // Método auxiliar centralizado
     private function jsonResponse(Response $response, $data, $status = 200) {
         $response->getBody()->write(json_encode($data));
         return $response->withHeader('Content-Type', 'application/json')->withStatus($status);

@@ -4,7 +4,6 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\Unit;
-use App\Config\Database;
 use App\Utils\Slugger;
 use Exception;
 
@@ -12,26 +11,19 @@ class UnitController {
 
     use Slugger;
 
-    // 1. Defina a propriedade privada
-    private $db;
+    private $unitModel;
 
-    // 2. Inicialize a conexão no construtor (mais limpo e eficiente)
     public function __construct() {
-        $this->db = Database::getConnection();
-    }
-
-    private function jsonResponse(Response $response, $data, $status = 200) {
-        $response->getBody()->write(json_encode($data));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+        // O Model já se resolve sozinho com o Singleton
+        $this->unitModel = new Unit();
     }
 
     public function list(Request $request, Response $response) {
         try {
-            $unitModel = new Unit($this->db);
-            $units = $unitModel->getAll();
+            $units = $this->unitModel->getAll();
             return $this->jsonResponse($response, $units ?: []);
         } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Falha ao listar."], 500);
+            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Falha ao listar unidades."], 500);
         }
     }
 
@@ -44,17 +36,19 @@ class UnitController {
                 return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "O nome é obrigatório."], 400);
             }
 
-            // CORREÇÃO AQUI: Agora usamos $this->db que foi carregado no construtor
-            $slug = $this->generateUniqueSlug($name, 'units', $this->db);
+            // Usamos a conexão do Singleton para o gerador de Slugs
+            $slug = $this->generateUniqueSlug($name, 'units', $this->unitModel->getConnection());
             
-            $unitModel = new Unit($this->db);
-            if ($unitModel->create($name, $slug)) {
-                return $this->jsonResponse($response, ["status" => "sucesso", "slug" => $slug], 201);
+            if ($this->unitModel->create($name, $slug)) {
+                return $this->jsonResponse($response, [
+                    "status" => "sucesso", 
+                    "mensagem" => "Unidade criada!",
+                    "slug" => $slug
+                ], 201);
             }
             
             throw new Exception("Erro ao inserir no banco.");
         } catch (Exception $e) {
-            // Dica: Adicione $e->getMessage() para debugar o erro real se falhar novamente
             return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
         }
     }
@@ -62,15 +56,26 @@ class UnitController {
     public function delete(Request $request, Response $response, array $args) {
         try {
             $id = $args['id'];
-            $unitModel = new Unit($this->db);
             
-            if ($unitModel->delete($id)) {
-                return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Removida com sucesso."]);
+            // Verifica existência
+            if (!$this->unitModel->findById($id)) {
+                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Unidade não encontrada."], 404);
             }
 
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Não encontrada."], 404);
+            $this->unitModel->delete($id);
+            return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Removida com sucesso."]);
+            
         } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Erro ao deletar: verifique se há vínculos."], 400);
+            // Tratamento específico para restrição de chave estrangeira (se houver eventos na unidade)
+            return $this->jsonResponse($response, [
+                "status" => "erro", 
+                "mensagem" => "Não é possível excluir: existem eventos vinculados a esta unidade."
+            ], 400);
         }
+    }
+
+    private function jsonResponse(Response $response, $data, $status = 200) {
+        $response->getBody()->write(json_encode($data));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 }

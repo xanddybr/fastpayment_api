@@ -1,40 +1,64 @@
 <?php
 namespace App\Models;
+
 use PDO;
 
-class Schedule {
-    private $conn;
-    public function __construct($db) { $this->conn = $db; }
+class Schedule extends BaseModel {
 
-    public function create($unit_id, $event_id, $type_id, $vacancies, $scheduled_at) {
+    public function create($data) {
         $query = "INSERT INTO schedules (unit_id, event_id, event_type_id, vacancies, scheduled_at, status) 
                   VALUES (:unit, :event, :type, :vacancies, :scheduled_at, 'available')";
         $stmt = $this->conn->prepare($query);
         return $stmt->execute([
-            ":unit" => $unit_id, 
-            ":event" => $event_id, 
-            ":type" => $type_id,
-            ":vacancies" => $vacancies, 
-            ":scheduled_at" => $scheduled_at
+            ":unit"         => $data['unit_id'], 
+            ":event"        => $data['event_id'], 
+            ":type"         => $data['event_type_id'],
+            ":vacancies"    => $data['vacancies'] ?? 1, 
+            ":scheduled_at" => $data['scheduled_at']
         ]);
     }
 
-    public function getAll() {
-        // JOIN rigoroso para trazer nomes em vez de IDs
-        $query = "SELECT s.*, u.name as unit_name, e.name as event_name, t.name as type_name 
+    public function getAllAdmin() {
+        $query = "SELECT s.id as schedule_id, e.name as event_name, e.price as event_price,
+                         et.name as type_name, u.name as unit_name, s.scheduled_at, 
+                         s.vacancies, s.status, e.slug
                   FROM schedules s
                   JOIN units u ON s.unit_id = u.id
                   JOIN events e ON s.event_id = e.id
-                  JOIN event_types t ON s.event_type_id = t.id
-                  ORDER BY s.scheduled_at ASC";
+                  JOIN event_types et ON s.event_type_id = et.id
+                  ORDER BY s.scheduled_at DESC";
         return $this->conn->query($query)->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function delete($id) {
-        $query = "DELETE FROM schedules WHERE id = :id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":id", $id);
+    public function getAvailable($eventSlug = null, $typeSlug = null) {
+        $sql = "SELECT s.id as schedule_id, e.name as event_name, e.price as event_price,
+                       et.name as type_name, u.name as unit_name, s.scheduled_at, 
+                       s.vacancies, e.slug as event_slug, et.slug as type_slug
+                FROM schedules s
+                JOIN events e ON s.event_id = e.id
+                JOIN units u ON s.unit_id = u.id
+                JOIN event_types et ON s.event_type_id = et.id
+                WHERE s.status = 'available'";
+
+        if ($eventSlug) $sql .= " AND LOWER(e.slug) = :eventSlug";
+        if ($typeSlug)  $sql .= " AND LOWER(et.slug) = :typeSlug";
+
+        $stmt = $this->conn->prepare($sql);
+        if ($eventSlug) $stmt->bindValue(':eventSlug', $eventSlug);
+        if ($typeSlug)  $stmt->bindValue(':typeSlug', $typeSlug);
+
         $stmt->execute();
-        return $stmt->rowCount() > 0;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function autoCloseExpired() {
+        $sql = "UPDATE schedules SET status = 'unavailable' 
+                WHERE scheduled_at < NOW() AND status = 'available'";
+        return $this->conn->query($sql)->execute();
+    }
+
+    public function delete($id) {
+        $stmt = $this->conn->prepare("DELETE FROM schedules WHERE id = :id");
+        return $stmt->execute([':id' => $id]);
     }
 }
