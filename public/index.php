@@ -94,10 +94,10 @@
 
         // Usuários
         $app->group('/person', function ($group) {
-            $group->get('/list', \App\Controllers\PersonController::class . ':listAll');
-            $group->post('/create', \App\Controllers\PersonController::class . ':createAdmin');
-            $group->post('/update/{id}', \App\Controllers\PersonController::class . ':update');
-            $group->delete('/{id}', \App\Controllers\PersonController::class . ':remove');
+            $group->get('/list', [PersonController::class, 'listAll']);
+            $group->post('/create', [PersonController::class, 'createAdmin']);
+            $group->put('/update/{id}', [PersonController::class, 'update']);
+            $group->delete('/{id}', [PersonController::class, 'remove']);
         })->add($adminMiddleware);
 
         // Unidades

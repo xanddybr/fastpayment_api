@@ -24,15 +24,20 @@ class Person extends BaseModel {
     }
 
     public function findAll() {
-        $sql = "SELECT p.*, pd.activity_professional, pd.phone, pd.city, tp.name as role 
-                FROM persons p 
-                LEFT JOIN person_details pd ON p.id = pd.person_id 
-                LEFT JOIN types_person tp ON p.type_person_id = tp.id 
-                ORDER BY p.id DESC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+    // O DISTINCT garante que se a linha inteira for repetida, ele mostre apenas uma
+    $sql = "SELECT DISTINCT 
+                p.id, p.full_name, p.email, p.status, p.type_person_id, p.created_at,
+                pd.activity_professional, pd.phone, pd.city, 
+                tp.name as role 
+            FROM persons p 
+            LEFT JOIN person_details pd ON p.id = pd.person_id 
+            LEFT JOIN types_person tp ON p.type_person_id = tp.id 
+            ORDER BY p.id DESC";
+            
+    $stmt = $this->conn->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
     public function findById($id) {
         $sql = "SELECT p.*, pd.activity_professional, pd.phone, pd.street, pd.number, pd.neighborhood, pd.city
