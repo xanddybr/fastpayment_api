@@ -62,49 +62,116 @@ class Registration extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+  
     /**
-     * Card 11.3: Efetiva a inscrição, reduz vaga e cria registro de anamnese
+     * Card 11.3 + 10.0: Efetiva a inscrição, garante a vaga e registra o financeiro.
+     * Esta função é atômica (Transaction) e protegida contra duplicidade.
+     */
+   /**
+     * Card 11.3: Efetiva a inscrição com base no schema.sql fornecido.
+     * Ajustado para as colunas reais das tabelas transactions e anamnesis.
      */
     public function completeSubscription($personId, $scheduleId, $paymentId) {
         try {
-            $this->conn->beginTransaction();
+            if (!$this->conn->inTransaction()) {
+                $this->conn->beginTransaction();
+            }
 
-            // 1. Criar o registro oficial em events_subscribed
-            $sqlSub = "INSERT INTO events_subscribed (person_id, schedule_id, payment_id, status) 
-                       VALUES (:pid, :sid, :payid, 'confirmed')
-                       ON DUPLICATE KEY UPDATE status = 'confirmed'";
-            $stmtSub = $this->conn->prepare($sqlSub);
-            $stmtSub->execute([
-                ':pid'   => $personId,
-                ':sid'   => $scheduleId,
-                ':payid' => $paymentId
+            // 1. REGRA DE NEGÓCIO: Evitar duplicidade
+            $checkSql = "SELECT id FROM events_subscribed WHERE person_id = :p AND schedule_id = :s";
+            $checkStmt = $this->conn->prepare($checkSql);
+            $checkStmt->execute([':p' => $personId, ':s' => $scheduleId]);
+
+            if ($checkStmt->fetch()) {
+                throw new \Exception("Inscrição Negada: Aluno já inscrito neste horário.");
+            }
+
+            // 2. VERIFICAR E BAIXAR VAGAS
+            $updateVagas = "UPDATE schedules SET vacancies = vacancies - 1 WHERE id = :id AND vacancies > 0";
+            $stmtVagas = $this->conn->prepare($updateVagas);
+            $stmtVagas->execute([':id' => $scheduleId]);
+
+            if ($stmtVagas->rowCount() === 0) {
+                throw new \Exception("Inscrição Negada: Não há mais vagas disponíveis.");
+            }
+
+            // 3. BUSCAR VALOR DO EVENTO
+            $sqlPrice = "SELECT e.price FROM schedules s JOIN events e ON s.event_id = e.id WHERE s.id = :sid";
+            $stmtPrice = $this->conn->prepare($sqlPrice);
+            $stmtPrice->execute([':sid' => $scheduleId]);
+            $eventData = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
+            $amount = $eventData['price'] ?? 0;
+
+            // 4. CRIAR REGISTRO FINANCEIRO (Ajustado para o seu schema)
+            $sqlTrans = "INSERT INTO transactions (schedule_id, person_id, payment_status, amount, created_at) 
+                        VALUES (:sid, :pid, 'approved', :amount, NOW())";
+            $this->conn->prepare($sqlTrans)->execute([
+                ':sid'    => $scheduleId,
+                ':pid'    => $personId,
+                ':amount' => $amount
             ]);
 
-            // Captura o ID da inscrição para a anamnese
-            $subscriptionId = $this->conn->lastInsertId() ?: null;
+            // 5. CRIAR INSCRIÇÃO
+            $sqlSub = "INSERT INTO events_subscribed (person_id, schedule_id, status, created_at) 
+                    VALUES (:pid, :sid, 'confirmed', NOW())";
+            $this->conn->prepare($sqlSub)->execute([':pid' => $personId, ':sid' => $scheduleId]);
+            $subscriptionId = $this->conn->lastInsertId();
 
-            // 2. Reduzir uma vaga no agendamento (Apenas se houver vagas)
-            $sqlVac = "UPDATE schedules SET vacancies = vacancies - 1 
-                       WHERE id = :sid AND vacancies > 0";
-            $stmtVac = $this->conn->prepare($sqlVac);
-            $stmtVac->execute([':sid' => $scheduleId]);
-
-            if ($stmtVac->rowCount() === 0) {
-                // Opcional: Aqui poderíamos lançar exceção se as vagas acabaram no milissegundo do pagamento
-            }
-
-            // 3. Gerar registro inicial de anamnese (vazio)
-            if ($subscriptionId) {
-                $sqlAnam = "INSERT IGNORE INTO anamnesis (subscribed_id, first_time) 
-                            VALUES (:subid, 1)";
-                $this->conn->prepare($sqlAnam)->execute([':subid' => $subscriptionId]);
-            }
+            // 6. CRIAR FICHA DE ANAMNESE (Ajustado para 'subscribed_id')
+            $sqlAna = "INSERT INTO anamnesis (subscribed_id, first_time, created_at) VALUES (:subid, 1, NOW())";
+            $this->conn->prepare($sqlAna)->execute([':subid' => $subscriptionId]);
 
             $this->conn->commit();
             return true;
+
         } catch (\Exception $e) {
-            $this->conn->rollBack();
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
             throw $e;
         }
+    }
+    
+    public function getTransactionsReport() {
+        $sql = "SELECT t.*, p.full_name, p.email 
+                FROM transactions t
+                JOIN persons p ON t.person_id = p.id
+                ORDER BY t.created_at DESC";
+        return $this->conn->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Card 11.2: Extrato de Movimentação por e-mail/ID
+     */
+    public function getFinancialStatement() {
+        $sql = "SELECT 
+                    t.id as trans_id, t.amount, t.type as trans_type, t.created_at,
+                    p.full_name, p.email,
+                    pay.status as payment_status, pay.id as payment_id
+                FROM transactions t
+                JOIN persons p ON t.person_id = p.id
+                LEFT JOIN payments pay ON t.payment_id = pay.id
+                ORDER BY t.created_at DESC";
+        
+        return $this->conn->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Retorna a receita total acumulada na plataforma
+     */
+    /**
+     * Retorna a receita total acumulada (Apenas pagamentos aprovados)
+     * Ajustado conforme schema.sql: utiliza 'payment_status' e 'amount'
+     */
+    public function getTotalRevenue() {
+        // No seu banco a coluna é payment_status e não existe a coluna 'type'
+        $sql = "SELECT SUM(amount) as total 
+                FROM transactions 
+                WHERE payment_status = 'approved'";
+        
+        $stmt = $this->conn->query($sql);
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        
+        return $result['total'] ?? 0;
     }
 }

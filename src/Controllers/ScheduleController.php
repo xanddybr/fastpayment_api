@@ -20,7 +20,7 @@ class ScheduleController {
             
             // Validação de Campos
             if (empty($data['scheduled_at']) || empty($data['event_id']) || empty($data['unit_id'])) {
-                return $this->jsonResponse($response, ["error" => "Dados incompletos"], 400);
+                return $this->jsonResponse($response, ["error" => "Dados incompletos, faltando objeto: {'unit_id': 0, 'event_id': 0, 'event_type_id': 0, 'vacancies': 0 }"], 400);
             }
 
             // Regra de Negócio: 1 hora de antecedência
@@ -38,13 +38,15 @@ class ScheduleController {
     }
 
     public function listAdminSchedules(Request $request, Response $response) {
-        $this->scheduleModel->autoCloseExpired();
+
+        $this->scheduleModel->syncSchedulesStatus();
         $data = $this->scheduleModel->getAllAdmin();
         return $this->jsonResponse($response, $data);
     }
 
     public function listAvailableSchedules(Request $request, Response $response) {
-        $this->scheduleModel->autoCloseExpired();
+        
+        $this->scheduleModel->syncSchedulesStatus();
         $params = $request->getQueryParams();
         
         $data = $this->scheduleModel->getAvailable(

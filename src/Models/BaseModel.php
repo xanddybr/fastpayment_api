@@ -10,4 +10,8 @@ abstract class BaseModel {
         // Todos os filhos já "nascem" com a conexão pronta
         $this->conn = Database::getConnection();
     }
+
+    public function getConnection() {
+        return $this->conn;
+    }
 }

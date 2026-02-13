@@ -62,7 +62,6 @@ class Person extends BaseModel {
      */
     public function saveUnified($data) {
         try {
-            $this->conn->beginTransaction();
 
             $sqlPerson = "INSERT INTO persons (full_name, email, password, type_person_id, status) 
                           VALUES (:name, :email, :pass, :type_id, 'active')
@@ -101,17 +100,14 @@ class Person extends BaseModel {
                 ':city'   => $details['city'] ?? null
             ]);
 
-            $this->conn->commit();
             return $personId;
         } catch (Exception $e) {
-            $this->conn->rollBack();
             throw $e;
         }
     }
 
     public function updateUnified($id, $data) {
         try {
-            $this->conn->beginTransaction();
 
             $sqlPerson = "UPDATE persons SET full_name = :name, type_person_id = :type_id WHERE id = :id";
             $stmtPerson = $this->conn->prepare($sqlPerson);
@@ -144,10 +140,9 @@ class Person extends BaseModel {
                 ':id'     => $id
             ]);
 
-            $this->conn->commit();
             return true;
         } catch (Exception $e) {
-            $this->conn->rollBack();
+            
             throw $e;
         }
     }
@@ -220,7 +215,6 @@ class Person extends BaseModel {
      */
     public function updateFullProfile($data) {
         try {
-            $this->conn->beginTransaction();
 
             // 1. Atualiza Tabela persons
             $sqlPerson = "UPDATE persons SET full_name = :name, email = :email, status = :status 
@@ -269,10 +263,8 @@ class Person extends BaseModel {
                 ]);
             }
 
-            $this->conn->commit();
             return true;
         } catch (\Exception $e) {
-            if ($this->conn->inTransaction()) $this->conn->rollBack();
             throw $e;
         }
     }

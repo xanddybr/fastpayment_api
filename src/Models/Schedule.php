@@ -51,10 +51,39 @@ class Schedule extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function autoCloseExpired() {
-        $sql = "UPDATE schedules SET status = 'unavailable' 
-                WHERE scheduled_at < NOW() AND status = 'available'";
-        return $this->conn->query($sql)->execute();
+    /**
+ * Sincroniza o status da agenda:
+ * 1. Fecha o que já passou ou está acontecendo (<= Agora)
+ * 2. Abre o que é futuro (> 1 hora a partir de agora)
+ */
+    public function syncSchedulesStatus() {
+        try {
+            $this->conn->beginTransaction();
+
+            // 1. Marcar como 'unavailable' tudo que já passou da hora de início
+            // ou que está acontecendo exatamente agora.
+            $sqlClose = "UPDATE schedules 
+                        SET status = 'unavailable' 
+                        WHERE scheduled_at <= NOW() 
+                        AND status = 'available'";
+            $this->conn->query($sqlClose)->execute();
+
+            // 2. Marcar como 'available' tudo que está no futuro 
+            // (com margem de segurança maior que 1 hora)
+            $sqlOpen = "UPDATE schedules 
+                        SET status = 'available' 
+                        WHERE status = 'unavailable' 
+                        AND scheduled_at > DATE_ADD(NOW(), INTERVAL 1 HOUR)";
+            $this->conn->query($sqlOpen)->execute();
+
+            $this->conn->commit();
+            return true;
+        } catch (\Exception $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function delete($id) {

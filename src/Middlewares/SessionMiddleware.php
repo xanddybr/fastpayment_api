@@ -6,9 +6,10 @@ use Psr\Http\Server\RequestHandlerInterface as Handler;
 use Slim\Psr7\Response;
 
 class SessionMiddleware {
+
     public function __invoke(Request $request, Handler $handler) {
         $currentTime = time();
-        $timeout = 1200; // aqui é informado o tempo de expiração da aplicação
+        $timeout = 1800; // aqui é informado o tempo de expiração da aplicação
 
         // 1. Verifica se existe usuário logado na sessão
         if (!isset($_SESSION['user_id'])) {

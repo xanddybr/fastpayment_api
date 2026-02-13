@@ -171,4 +171,66 @@ class RegistrationController {
             return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
         }
     }
+    /**
+     * Card 10.0: Lista o extrato real da tabela transactions
+     */
+    public function listTransactions(Request $request, Response $response) {
+        try {
+            $data = $this->registrationModel->getTransactionsReport();
+            
+            return $this->jsonResponse($response, [
+                "status" => "sucesso",
+                "total" => count($data),
+                "data" => $data
+            ]);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+        }
+    }
+
+    public function getDashboardSummary(Request $request, Response $response) {
+        try {
+            $revenue = $this->registrationModel->getTotalRevenue();
+            
+            return $this->jsonResponse($response, [
+                "status" => "sucesso",
+                "data" => [
+                    "total_revenue" => (float)$revenue,
+                    "currency" => "BRL"
+                ]
+            ]);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+        }
+    }
+
+    // Dentro de src/Controllers/RegistrationController.php
+
+    public function completeSubscription(Request $request, Response $response) {
+        try {
+            $data = $request->getParsedBody();
+
+            // Pega os IDs enviados pelo Postman
+            $personId   = $data['person_id'] ?? null;
+            $scheduleId = $data['schedule_id'] ?? null;
+            $paymentId  = $data['payment_id'] ?? null;
+
+            if (!$personId || !$scheduleId || !$paymentId) {
+                $response->getBody()->write(json_encode(["error" => "Dados incompletos"]));
+                return $response->withStatus(400);
+            }
+
+            // CHAMA O MODEL (A função que corrigimos antes com o schema.sql)
+            $success = $this->registrationModel->completeSubscription($personId, $scheduleId, $paymentId);
+
+            if ($success) {
+                $response->getBody()->write(json_encode(["status" => "sucesso", "message" => "Inscrição confirmada!"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
 }
