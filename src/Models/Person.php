@@ -186,4 +186,94 @@ class Person extends BaseModel {
 
         return $code;
     }
+
+    /**
+     * Card 8.1 / 11.1: Ficha Definitiva do Aluno
+     * Traz Person, Details, e todas as Inscrições com Anamnese completa
+     */
+    public function getFullProfile($id) {
+        $sql = "SELECT 
+                    p.id, p.full_name, p.email, p.status as person_status,
+                    pd.activity_professional, pd.phone, pd.street, pd.number, pd.neighborhood, pd.city,
+                    es.id as subscription_id, es.status as subscription_status,
+                    e.name as course_name, s.scheduled_at as course_date,
+                    -- Campos da Anamnese (Excluindo id e created_at)
+                    a.course_reason, a.expectations, a.who_recomend, a.is_medium, 
+                    a.religion, a.religion_mention, a.is_tule_member, a.obs_motived, a.first_time
+                FROM persons p
+                LEFT JOIN person_details pd ON p.id = pd.person_id
+                LEFT JOIN events_subscribed es ON p.id = es.person_id
+                LEFT JOIN schedules s ON es.schedule_id = s.id
+                LEFT JOIN events e ON s.event_id = e.id
+                LEFT JOIN anamnesis a ON es.id = a.subscribed_id
+                WHERE p.id = :id
+                ORDER BY es.created_at DESC";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC); 
+    }
+
+    /**
+     * Card 8.1: Update Unificado
+     * Atualiza dados básicos, profissionais e a anamnese vinculada
+     */
+    public function updateFullProfile($data) {
+        try {
+            $this->conn->beginTransaction();
+
+            // 1. Atualiza Tabela persons
+            $sqlPerson = "UPDATE persons SET full_name = :name, email = :email, status = :status 
+                          WHERE id = :id";
+            $this->conn->prepare($sqlPerson)->execute([
+                ':name'   => $data['full_name'] ?? null,
+                ':email'  => $data['email'] ?? null,
+                ':status' => $data['person_status'] ?? $data['status'] ?? 'active', // Tenta as duas chaves
+                ':id'     => $data['id']
+            ]);
+
+            // 2. Atualiza Tabela person_details
+            $sqlDetails = "UPDATE person_details SET 
+                            activity_professional = :prof, phone = :phone, street = :street, 
+                            number = :num, neighborhood = :neigh, city = :city
+                           WHERE person_id = :id";
+            $this->conn->prepare($sqlDetails)->execute([
+                ':prof'  => $data['activity_professional'] ?? null,
+                ':phone' => $data['phone'] ?? null,
+                ':street'=> $data['street'] ?? null,
+                ':num'   => $data['number'] ?? null,
+                ':neigh' => $data['neighborhood'] ?? null,
+                ':city'  => $data['city'] ?? null,
+                ':id'    => $data['id']
+            ]);
+
+            // 3. Atualiza Tabela anamnesis
+            if (!empty($data['subscription_id'])) {
+                $sqlAnam = "UPDATE anamnesis SET 
+                                course_reason = :reason, expectations = :expect, 
+                                who_recomend = :rec, is_medium = :med, 
+                                religion = :rel, religion_mention = :rel_m, 
+                                is_tule_member = :tule, obs_motived = :obs, first_time = :first
+                            WHERE subscribed_id = :sid";
+                $this->conn->prepare($sqlAnam)->execute([
+                    ':reason' => $data['course_reason'] ?? null,
+                    ':expect' => $data['expectations'] ?? null,
+                    ':rec'    => $data['who_recomend'] ?? null,
+                    ':med'    => $data['is_medium'] ?? 0,
+                    ':rel'    => $data['religion'] ?? 0,
+                    ':rel_m'  => $data['religion_mention'] ?? null,
+                    ':tule'   => $data['is_tule_member'] ?? 0,
+                    ':obs'    => $data['obs_motived'] ?? null,
+                    ':first'  => $data['first_time'] ?? 1,
+                    ':sid'    => $data['subscription_id']
+                ]);
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch (\Exception $e) {
+            if ($this->conn->inTransaction()) $this->conn->rollBack();
+            throw $e;
+        }
+    }
 }

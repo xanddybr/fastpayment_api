@@ -32,29 +32,60 @@ class PersonController {
     /**
      * BUSCAR POR ID: Retorna um único usuário com seus detalhes (GET /person/{id})
      */
+    /**
+     * Card 1.5 / 8.1: Carrega dados para o modal de edição
+     */
     public function show(Request $request, Response $response, array $args) {
         try {
             $id = $args['id'];
-            
-            // Chama o método findById que você já tem no Model
-            $person = $this->personModel->findById($id);
+            $data = $this->personModel->getFullProfile($id);
 
-            // Se não encontrar o registro, retorna erro 404
-            if (!$person) {
-                return $this->jsonResponse($response, [
-                    "status" => "erro",
-                    "mensagem" => "Usuário não encontrado."
-                ], 404);
+            if (!$data) {
+                return $this->jsonResponse($response, ["error" => "Usuário não encontrado"], 404);
             }
 
-            // Retorna os dados do usuário encontrado
-            return $this->jsonResponse($response, $person);
+            // Organizando o objeto para o Front-end
+            $profile = [
+                "id" => $data[0]['id'],
+                "full_name" => $data[0]['full_name'],
+                "email" => $data[0]['email'],
+                "phone" => $data[0]['phone'],
+                "details" => [
+                    "activity_professional" => $data[0]['activity_professional'],
+                    "address" => [
+                        "street" => $data[0]['street'],
+                        "number" => $data[0]['number'],
+                        "neighborhood" => $data[0]['neighborhood'],
+                        "city" => $data[0]['city']
+                    ]
+                ],
+                "subscriptions" => []
+            ];
 
-        } catch (\Exception $e) {
-            return $this->jsonResponse($response, [
-                "status" => "erro",
-                "mensagem" => "Erro ao buscar usuário: " . $e->getMessage()
-            ], 500);
+           foreach ($data as $row) {
+                if ($row['subscription_id']) {
+                    $profile['subscriptions'][] = [
+                        "course" => $row['course_name'],
+                        "date" => $row['course_date'],
+                        "status" => $row['subscription_status'],
+                        "anamnesis" => [
+                            "first_time" => (int)$row['first_time'],
+                            "who_recomend" => $row['who_recomend'],
+                            "is_medium" => (int)$row['is_medium'],
+                            "is_tule_member" => (int)$row['is_tule_member'],
+                            "religion" => (int)$row['religion'],
+                            "religion_mention" => $row['religion_mention'],
+                            "course_reason" => $row['course_reason'],
+                            "expectations" => $row['expectations'],
+                            "obs_motived" => $row['obs_motived']
+                        ]
+                    ];
+                }
+            }
+
+            return $this->jsonResponse($response, $profile);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
         }
     }
 
@@ -75,28 +106,6 @@ class PersonController {
         }
     }
 
-    /**
-     * Atualiza um usuário existente (POST /api/admin/person/update/{id})
-     */
-    public function update(Request $request, Response $response, array $args) {
-        try {
-            $id = $args['id'];
-            $data = $request->getParsedBody();
-            
-            $this->personModel->updateUnified($id, $data);
-            
-            return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "mensagem" => "Dados atualizados com sucesso"
-            ]);
-        } catch (\Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 400);
-        }
-    }
-
-    /**
-     * Remove um usuário (DELETE /api/admin/person/{id})
-     */
     public function remove(Request $request, Response $response, array $args) {
         try {
             $id = $args['id'];
@@ -108,6 +117,25 @@ class PersonController {
             ]);
         } catch (\Exception $e) {
             return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Card 8.1: Recebe o POST/PUT para atualizar a ficha
+     */
+    public function update(Request $request, Response $response, array $args) {
+        try {
+            $data = $request->getParsedBody();
+            $data['id'] = $args['id']; // ID da URL
+
+            $this->personModel->updateFullProfile($data);
+
+            return $this->jsonResponse($response, [
+                "status" => "sucesso",
+                "message" => "Ficha atualizada com sucesso!"
+            ]);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
         }
     }
 

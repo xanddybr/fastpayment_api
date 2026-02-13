@@ -52,12 +52,20 @@
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         });
 
+        $adminMiddleware = new \App\Middlewares\SessionMiddleware();
 
+
+        $app->group('/api', function ($group) {
+            $group->get('/payments/history', \App\Controllers\RegistrationController::class . ':paymentHistory');
+            $group->get('/subscribers', \App\Controllers\RegistrationController::class . ':listAllSubscribers');
+            $group->post('/subscriptions/confirm', \App\Controllers\RegistrationController::class . ':confirmSubscription');
+        })->add($adminMiddleware);
+        
         // Rotas para dashboard
         $app->get('/api/admin/dashboard', \App\Controllers\RegistrationController::class . ':dashboardStats');
         
         // Rota que o Cron Job vai "bater"
-        $app->get('/api/schedules/cleanup', [ScheduleController::class, 'closeExpiredSchedules']);
+        $app->get('/api/schedules/cleanup', \App\Controllers\ScheduleController::class . ':closeExpiredSchedules');
 
         // Listagem de Cards na Agenda
         $app->get('/api/schedules', \App\Controllers\ScheduleController::class . ':listAvailableSchedules');
@@ -89,7 +97,7 @@
         // -----------------------------------------------------------------------------
         // 9. GRUPOS ADMINISTRATIVOS (PROTEGIDOS POR SESSION)
         // -----------------------------------------------------------------------------
-        $adminMiddleware = new \App\Middlewares\SessionMiddleware();
+       
 
         // Usuários
         $app->group('/person', function ($group) {
