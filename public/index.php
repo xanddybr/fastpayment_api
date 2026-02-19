@@ -42,7 +42,15 @@ $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
 // Auth
 $app->post('/login', \App\Controllers\AuthController::class . ':login');
-$app->post('/logout', \App\Controllers\AuthController::class . ':logout');
+$app->post('/logout', function ($request, $response) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    session_destroy();
+    
+    $response->getBody()->write(json_encode(["status" => "tchau"]));
+    return $response->withHeader('Content-Type', 'application/json');
+});
 
 // No seu index.php, adicione esta linha junto com as outras rotas de Auth
 $app->get('/api/auth/check', function (Request $request, Response $response) {
