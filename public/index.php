@@ -105,4 +105,33 @@ $app->group('/api/admin', function ($group) {
 
 })->add($adminMiddleware);
 
+// ... outras rotas ...
+$app->post('/api/webhooks/mercadopago', function (Request $request, Response $response) use ($db) {
+    
+    $data = $request->getParsedBody();
+
+    // Usamos o $db que veio lá de fora do escopo da função
+    $model = new \App\Models\Registration($db);
+
+    try {
+        $personId = $data['person_id'] ?? null;
+        $scheduleId = $data['schedule_id'] ?? null;
+        $paymentId = $data['payment_id'] ?? ($data['data']['id'] ?? 'WEBHOOK-TEST');
+
+        if (!$personId || !$scheduleId) {
+            throw new \Exception("Dados insuficientes para processar o webhook.");
+        }
+
+        // Executa a lógica de inscrição
+        $model->completeSubscription($personId, $scheduleId, $paymentId);
+
+        $response->getBody()->write(json_encode(["status" => "sucesso"]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+});
+
 $app->run();
