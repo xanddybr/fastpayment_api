@@ -44,6 +44,14 @@ $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 $app->post('/login', \App\Controllers\AuthController::class . ':login');
 $app->post('/logout', \App\Controllers\AuthController::class . ':logout');
 
+// No seu index.php, adicione esta linha junto com as outras rotas de Auth
+$app->get('/api/auth/check', function (Request $request, Response $response) {
+    if (isset($_SESSION['user_id'])) {
+        return $response->withStatus(200);
+    }
+    return $response->withStatus(401);
+});
+
 // Fluxo de Inscrição (Vitrine do Cliente)
 // Chamada no front: http://localhost:8080/api/schedules
 $app->get('/api/schedules', \App\Controllers\ScheduleController::class . ':listAvailableSchedules');
@@ -100,6 +108,7 @@ $app->group('', function ($group) {
     $group->get('/persons/{id}', \App\Controllers\PersonController::class . ':show');
     $group->post('/persons', \App\Controllers\PersonController::class . ':store');
     $group->delete('/persons/{id}', \App\Controllers\PersonController::class . ':remove');
+    $group->patch('/persons/password-reset', \App\Controllers\PersonController::class . ':updatePassword');
 
 })->add($adminMiddleware);
 
