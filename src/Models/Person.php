@@ -24,20 +24,20 @@ class Person extends BaseModel {
     }
 
     public function findAll() {
-    // O DISTINCT garante que se a linha inteira for repetida, ele mostre apenas uma
-    $sql = "SELECT DISTINCT 
-                p.id, p.full_name, p.email, p.status, p.type_person_id, p.created_at,
-                pd.activity_professional, pd.phone, pd.city, 
-                tp.name as role 
-            FROM persons p 
-            LEFT JOIN person_details pd ON p.id = pd.person_id 
-            LEFT JOIN types_person tp ON p.type_person_id = tp.id 
-            ORDER BY p.id DESC";
-            
-    $stmt = $this->conn->prepare($sql);
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+        // O DISTINCT garante que se a linha inteira for repetida, ele mostre apenas uma
+        $sql = "SELECT DISTINCT 
+                    p.id, p.full_name, p.email, p.status, p.type_person_id, p.created_at,
+                    pd.activity_professional, pd.phone, pd.city, 
+                    tp.name as role 
+                FROM persons p 
+                LEFT JOIN person_details pd ON p.id = pd.person_id 
+                LEFT JOIN types_person tp ON p.type_person_id = tp.id 
+                ORDER BY p.id DESC";
+                
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     public function findById($id) {
         $sql = "SELECT p.*, pd.activity_professional, pd.phone, pd.street, pd.number, pd.neighborhood, pd.city
@@ -80,7 +80,13 @@ class Person extends BaseModel {
                 ':type_id' => $data['type_person_id'] ?? 1
             ]);
 
-            $personId = $this->conn->lastInsertId() ?: $this->findByEmail($data['email'])['id'];
+            $personId = $this->conn->lastInsertId();
+            if (!$personId) {
+                $existingPerson = $this->findByEmail($data['email']);
+                // Se não encontrar a pessoa, lança exceção para evitar erro de array offset null
+                if (!$existingPerson) throw new Exception("Erro ao recuperar ID da pessoa após salvar.");
+                $personId = $existingPerson['id'];
+            }
 
             $details = $data['details'] ?? [];
             $sqlDetails = "INSERT INTO person_details (person_id, activity_professional, phone, street, number, neighborhood, city)
@@ -143,7 +149,7 @@ class Person extends BaseModel {
     public function createValidationCode($email, $phone) {
         // Invalida códigos antigos
         $this->conn->prepare("UPDATE registered_codes SET status = 'substituido' WHERE email = :email AND status = 'pendente'")
-                   ->execute(['email' => $email]);
+                   ->execute([':email' => $email]);
 
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $expiresAt = date('Y-m-d H:i:s', strtotime("+5 minutes"));
@@ -152,10 +158,10 @@ class Person extends BaseModel {
                 VALUES (:email, :phone, 'email', :code, :expiresAt, 'pendente')";
         
         $this->conn->prepare($sql)->execute([
-            'email' => $email, 
-            'phone' => $phone, 
-            'code' => $code, 
-            'expiresAt' => $expiresAt
+            ':email' => $email, 
+            ':phone' => $phone, 
+            ':code' => $code, 
+            ':expiresAt' => $expiresAt
         ]);
 
         return $code;

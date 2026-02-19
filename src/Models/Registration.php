@@ -170,6 +170,11 @@ class Registration extends BaseModel {
                 WHERE payment_status = 'approved'";
         
         $stmt = $this->conn->query($sql);
+        
+        if (!$stmt) {
+            return 0; // Retorna 0 se a consulta falhar, evitando crash
+        }
+
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         
         return $result['total'] ?? 0;

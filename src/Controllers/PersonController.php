@@ -13,6 +13,7 @@ class PersonController {
         $this->personModel = new Person();
     }
 
+
     public function listAll(Request $request, Response $response) {
         try {
             $users = $this->personModel->findAll();
