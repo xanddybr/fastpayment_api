@@ -76,6 +76,43 @@ class PersonController {
         }
     }
 
+
+    public function updatePassword(Request $request, Response $response) {
+        $data = $request->getParsedBody();
+        $email = $data['email'] ?? null;
+        $password = $data['password'] ?? null;
+
+        // Validação básica
+        if (!$email || !$password) {
+            $response->getBody()->write(json_encode([
+                "error" => "Campos obrigatórios: email e password."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        try {
+            // O Person model herda de BaseModel, capturando a conexão singleton
+            $personModel = new Person();
+            $success = $personModel->updatePasswordByEmail($email, $password);
+
+            if ($success) {
+                $response->getBody()->write(json_encode([
+                    "message" => "Senha atualizada com sucesso para o e-mail: $email"
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+
+            $response->getBody()->write(json_encode([
+                "error" => "Não foi possível atualizar. Verifique se o e-mail está correto."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+    
     public function createAdmin(Request $request, Response $response) {
         try {
             $data = $request->getParsedBody();

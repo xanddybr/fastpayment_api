@@ -106,43 +106,22 @@ class Person extends BaseModel {
         }
     }
 
-    public function updateUnified($id, $data) {
+    public function updatePasswordByEmail($email, $newPassword) {
         try {
+            // Gera o hash seguro conforme os padrões do seu sistema
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
 
-            $sqlPerson = "UPDATE persons SET full_name = :name, type_person_id = :type_id WHERE id = :id";
-            $stmtPerson = $this->conn->prepare($sqlPerson);
-            $stmtPerson->execute([
-                ':name'    => $data['full_name'],
-                ':type_id' => $data['type_person_id'],
-                ':id'      => $id
-            ]);
-
-            if (!empty($data['password'])) {
-                $hash = password_hash($data['password'], PASSWORD_DEFAULT);
-                $stmtPass = $this->conn->prepare("UPDATE persons SET password = :pass WHERE id = :id");
-                $stmtPass->execute([':pass' => $hash, ':id' => $id]);
-            }
-
-            $details = $data['details'] ?? [];
-            $sqlDetails = "UPDATE person_details SET 
-                            activity_professional = :act, phone = :phone, street = :street, 
-                            number = :num, neighborhood = :neigh, city = :city 
-                           WHERE person_id = :id";
-
-            $stmtDetails = $this->conn->prepare($sqlDetails);
-            $stmtDetails->execute([
-                ':act'    => $details['activity_professional'] ?? null,
-                ':phone'  => $details['phone'] ?? null,
-                ':street' => $details['street'] ?? null,
-                ':num'    => $details['number'] ?? null,
-                ':neigh'  => $details['neighborhood'] ?? null,
-                ':city'   => $details['city'] ?? null,
-                ':id'     => $id
-            ]);
-
-            return true;
-        } catch (Exception $e) {
+            $sql = "UPDATE persons SET password = :password WHERE email = :email";
+            $stmt = $this->conn->prepare($sql);
             
+            $stmt->execute([
+                ':password' => $hashedPassword,
+                ':email'    => $email
+            ]);
+
+            // rowCount indica se o registro foi de fato alterado
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
             throw $e;
         }
     }

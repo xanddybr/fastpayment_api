@@ -27,11 +27,12 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 $app = AppFactory::create();
+$app->setBasePath('/agenda/api/public/index.php');
 
 // 3. MIDDLEWARES GLOBAIS
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
-$adminMiddleware = new \App\Middlewares\SessionMiddleware();
+$adminMiddleware = new \App\Middlewares\SessionMiddleware(); 
 
 // 4. CONFIGURAÇÃO DE ERROS
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
@@ -77,6 +78,7 @@ $app->group('/api/admin', function ($group) {
     $group->post('/persons', \App\Controllers\PersonController::class . ':store');
     $group->post('/persons/{id}/update', \App\Controllers\PersonController::class . ':update');
     $group->delete('/persons/{id}', \App\Controllers\PersonController::class . ':remove');
+    $group->patch('/persons/password-reset', \App\Controllers\PersonController::class . ':updatePassword');
 
     // Tabelas Auxiliares (CRUDs)
     $group->group('/units', function ($g) {
