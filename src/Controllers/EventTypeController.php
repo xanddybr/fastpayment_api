@@ -47,20 +47,17 @@ class EventTypeController {
         }
     }
 
-    public function delete(Request $request, Response $response, array $args) {
+    public function delete($request, $response, $args) {
+        $id = $args['id'];
         try {
-            $id = $args['id'];
-            
-            // Verifica se existe antes de tentar deletar
-            $type = $this->eventTypeModel->findById($id);
-            if (!$type) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Tipo não encontrado."], 404);
-            }
+            $typeModel = new \App\Models\EventType(); 
+            $typeModel->delete($id);
 
-            $this->eventTypeModel->delete($id);
-            return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Tipo removido."]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 400);
+            $response->getBody()->write(json_encode(["message" => "Excluído com sucesso"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
     }
 

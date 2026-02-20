@@ -26,8 +26,19 @@ class Unit extends BaseModel {
     }
 
     public function delete($id) {
-        $stmt = $this->conn->prepare("DELETE FROM units WHERE id = :id");
-        $stmt->bindParam(":id", $id);
-        return $stmt->execute();
+        try {
+            $stmt = $this->conn->prepare("DELETE FROM units WHERE id = :id");
+            $stmt->bindParam(":id", $id);
+            
+            if ($stmt->execute()) {
+                return true; // Retorno explícito
+            }
+            return false;
+        } catch (\PDOException $e) {
+            if ($e->getCode() === '23000' || strpos($e->getMessage(), '1451') !== false) {
+                throw new \Exception("Esse registro não pode ser excluído, pois ele está relacionado a 1 ou mais agendamentos");
+            }
+           
+        }
     }
 }

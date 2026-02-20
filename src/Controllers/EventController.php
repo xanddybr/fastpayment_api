@@ -58,23 +58,20 @@ class EventController {
         }
     }
    
-    public function delete(Request $request, Response $response, array $args) {
-        try {
-            $id = $args['id'];
-            
-            // Verifica se existe antes de deletar (Boa prática)
-            $event = $this->eventModel->findById($id);
-            if (!$event) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Evento não encontrado."], 404);
-            }
+    public function delete($request, $response, $args) {
+    $id = $args['id'];
+    try {
+        // Instancia localmente como você pontuou
+        $eventModel = new \App\Models\Event(); 
+        $eventModel->delete($id);
 
-            $this->eventModel->delete($id);
-            return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Evento removido com sucesso."]);
-            
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Erro ao remover evento."], 400);
-        }
+        $response->getBody()->write(json_encode(["message" => "Excluído com sucesso"]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
     }
+}
 
     private function jsonResponse(Response $response, $data, $status = 200) {
         $response->getBody()->write(json_encode($data));

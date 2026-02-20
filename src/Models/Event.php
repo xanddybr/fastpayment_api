@@ -22,10 +22,18 @@ class Event extends BaseModel {
     }
 
     public function delete($id) {
+    try {
         $stmt = $this->conn->prepare("DELETE FROM events WHERE id = :id");
         $stmt->bindParam(":id", $id);
         return $stmt->execute();
+    } catch (\PDOException $e) {
+        // Verifica se o erro é de integridade referencial (MySQL 1451)
+        if ($e->getCode() === '23000' || strpos($e->getMessage(), '1451') !== false) {
+            throw new \Exception("Esse registro não pode ser excluído, pois ele está relacionado a 1 ou mais agendamentos");
+        }
+        throw $e;
     }
+}
     
     public function findById($id) {
         $stmt = $this->conn->prepare("SELECT * FROM events WHERE id = :id");

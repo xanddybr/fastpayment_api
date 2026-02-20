@@ -53,24 +53,17 @@ class UnitController {
         }
     }
 
-    public function delete(Request $request, Response $response, array $args) {
+   public function delete($request, $response, $args) {
+        $id = $args['id'];
         try {
-            $id = $args['id'];
-            
-            // Verifica existência
-            if (!$this->unitModel->findById($id)) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Unidade não encontrada."], 404);
-            }
+            $unitModel = new \App\Models\Unit(); 
+            $unitModel->delete($id);
 
-            $this->unitModel->delete($id);
-            return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Removida com sucesso."]);
-            
-        } catch (Exception $e) {
-            // Tratamento específico para restrição de chave estrangeira (se houver eventos na unidade)
-            return $this->jsonResponse($response, [
-                "status" => "erro", 
-                "mensagem" => "Não é possível excluir: existem eventos vinculados a esta unidade."
-            ], 400);
+            $response->getBody()->write(json_encode(["message" => "Excluído com sucesso"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
     }
 
