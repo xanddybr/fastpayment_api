@@ -9,7 +9,7 @@ class SessionMiddleware {
 
     public function __invoke(Request $request, Handler $handler) {
         $currentTime = time();
-        $timeout = 1800; // aqui é informado o tempo de expiração da aplicação
+        $timeout = 2000; // aqui é informado o tempo de expiração da aplicação
 
         // 1. Verifica se existe usuário logado na sessão
         if (!isset($_SESSION['user_id'])) {
