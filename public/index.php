@@ -27,8 +27,6 @@ $dotenv->load();
 
 $app = AppFactory::create();
 
-$app = AppFactory::create();
-
 // Detecta se é o servidor embutido do PHP (local) ou Apache (remoto)
 $isLocal = (php_sapi_name() === 'cli-server');
 
