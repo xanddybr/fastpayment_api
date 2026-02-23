@@ -27,6 +27,20 @@ $dotenv->load();
 
 $app = AppFactory::create();
 
+$app = AppFactory::create();
+
+// Detecta se é o servidor embutido do PHP (local) ou Apache (remoto)
+$isLocal = (php_sapi_name() === 'cli-server');
+
+if ($isLocal) {
+    // No local (php -S), não existe o prefixo da pasta na URL
+    $app->setBasePath(''); 
+} else {
+    // No servidor real, precisamos do caminho completo até a pasta public
+    // MAS SEM o index.php, já que vamos usar o .htaccess
+    $app->setBasePath('/agenda/api/public');
+}
+
 // 3. MIDDLEWARES GLOBAIS
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
