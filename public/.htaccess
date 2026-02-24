@@ -1,8 +1,15 @@
+# Impede a listagem de diretórios (evita o 403 se ele achar que units é pasta)
+Options -Indexes
+
+# Garante que ele não tente adivinhar nomes
+Options -MultiViews
+
 RewriteEngine On
 
-# Se o arquivo ou diretório solicitado não existir fisicamente...
+# Se a URL for exatamente a pasta public, redireciona pro index.php
+RewriteRule ^$ index.php [L]
+
+# Se não for um arquivo real, manda pro index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-
-# ...redireciona para o index.php mantendo os parâmetros (QSA)
 RewriteRule ^ index.php [QSA,L]
