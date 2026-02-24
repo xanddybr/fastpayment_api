@@ -1,9 +1,0 @@
-RewriteEngine On
-
-# Impede que o Apache tente adivinhar nomes de arquivos (melhora performance)
-Options -MultiViews
-
-# Redireciona tudo que não for um arquivo ou pasta real para o index.php
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]
