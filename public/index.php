@@ -34,7 +34,7 @@ $app->add(function (Request $request, $handler) {
     $response = $handler->handle($request);
     
     // Detecta a origem para permitir tanto local quanto remoto
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? 'http://misturadeluz.com';
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? 'https://misturadeluz.com';
     
     return $response
         ->withHeader('Access-Control-Allow-Origin', $origin)
