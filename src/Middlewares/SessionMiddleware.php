@@ -9,14 +9,14 @@ class SessionMiddleware {
 
     public function __invoke(Request $request, Handler $handler) {
         $currentTime = time();
-        $timeout = 2000; // aqui é informado o tempo de expiração da aplicação
+        $timeout = 1800; // aqui é informado o tempo de expiração da aplicação
 
         // 1. Verifica se existe usuário logado na sessão
         if (!isset($_SESSION['user_id'])) {
             $response = new Response();
             $response->getBody()->write(json_encode([
                 "status" => "erro",
-                "mensagem" => "Acesso negado. Faca o login."
+                "mensagem" => "Erro ao tentar iniciar a sessão"
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
         }
@@ -29,7 +29,7 @@ class SessionMiddleware {
             $response = new Response();
             $response->getBody()->write(json_encode([
                 "status" => "sessao_expirada",
-                "mensagem" => "Sua sessao expirou por inatividade. O administrador precisa logar novamente."
+                "mensagem" => "Sua sessao expirou por inatividade (Servidor)"
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
         }

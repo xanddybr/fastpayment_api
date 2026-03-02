@@ -27,6 +27,7 @@ class AuthController {
             return $this->jsonResponse($response, [
                 "status" => "sucesso", 
                 "message" => "Bem-vindo, " . $user['full_name'],
+                "session_expires_in" => 20,
                 "user" => $user
             ]);
         }

@@ -16,20 +16,24 @@ class RegistrationController {
         $this->registrationModel = new Registration();
     }
 
-    /**
-     * Card 11.1: Lista todos os inscritos com detalhes completos (Menu Inscritos)
-     */
-    public function listAllSubscribers(Request $request, Response $response) {
+   public function listAllSubscribers($request, $response) {
         try {
-            $list = $this->registrationModel->getFullSubscribersList();
+            // Se o seu padrão for Singleton, você provavelmente usa algo como:
+            $personModel = new \App\Models\Person(); 
             
-            return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "total" => count($list),
-                "data" => $list
-            ]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+            $subscribers = $personModel->getAllSubscribers();
+
+            $response->getBody()->write(json_encode($subscribers));
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(200);
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "erro",
+                "mensagem" => "Erro no Controller: " . $e->getMessage()
+            ]));
+            return $response->withStatus(500);
         }
     }
 
@@ -127,12 +131,7 @@ class RegistrationController {
     /**
      * Método auxiliar para respostas JSON
      */
-    private function jsonResponse(Response $response, $data, $status = 200) {
-        $response->getBody()->write(json_encode($data));
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($status);
-    }
+    
 
     public function paymentHistory(Request $request, Response $response) {
         try {
@@ -233,4 +232,12 @@ class RegistrationController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
+
+    private function jsonResponse(Response $response, $data, $status = 200) {
+        $response->getBody()->write(json_encode($data));
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus($status);
+    }
+    
 }

@@ -194,63 +194,42 @@ class Person extends BaseModel {
         return $stmt->fetchAll(\PDO::FETCH_ASSOC); 
     }
 
-    /**
-     * Card 8.1: Update Unificado
-     * Atualiza dados básicos, profissionais e a anamnese vinculada
-     */
-    public function updateFullProfile($data) {
-        try {
+    public function getAllSubscribers() {
+        $sql = "SELECT 
+                    p.id as person_id,
+                    p.full_name, 
+                    p.email,
+                    pd.phone, 
+                    pd.activity_professional, 
+                    pd.neighborhood, 
+                    pd.city,
+                    es.id as subscribed_id,
+                    es.status as subscription_status,
+                    es.created_at as data_inscricao,
+                    t.payer_email,
+                    t.amount as valor_pago,
+                    t.payment_status,
+                    t.updated_at as data_pagamento,
+                    a.course_reason, 
+                    a.expectations, 
+                    a.who_recomend, 
+                    a.is_medium, 
+                    a.religion, 
+                    a.religion_mention, 
+                    a.is_tule_member, 
+                    a.obs_motived, 
+                    a.first_time
+                FROM persons p
+                INNER JOIN person_details pd ON p.id = pd.person_id
+                INNER JOIN events_subscribed es ON p.id = es.person_id
+                LEFT JOIN transactions t ON (p.id = t.person_id AND es.schedule_id = t.schedule_id)
+                LEFT JOIN anamnesis a ON es.id = a.subscribed_id
+                WHERE p.type_person_id = 2 
+                ORDER BY es.created_at DESC";
 
-            // 1. Atualiza Tabela persons
-            $sqlPerson = "UPDATE persons SET full_name = :name, email = :email, status = :status 
-                          WHERE id = :id";
-            $this->conn->prepare($sqlPerson)->execute([
-                ':name'   => $data['full_name'] ?? null,
-                ':email'  => $data['email'] ?? null,
-                ':status' => $data['person_status'] ?? $data['status'] ?? 'active', // Tenta as duas chaves
-                ':id'     => $data['id']
-            ]);
-
-            // 2. Atualiza Tabela person_details
-            $sqlDetails = "UPDATE person_details SET 
-                            activity_professional = :prof, phone = :phone, street = :street, 
-                            number = :num, neighborhood = :neigh, city = :city
-                           WHERE person_id = :id";
-            $this->conn->prepare($sqlDetails)->execute([
-                ':prof'  => $data['activity_professional'] ?? null,
-                ':phone' => $data['phone'] ?? null,
-                ':street'=> $data['street'] ?? null,
-                ':num'   => $data['number'] ?? null,
-                ':neigh' => $data['neighborhood'] ?? null,
-                ':city'  => $data['city'] ?? null,
-                ':id'    => $data['id']
-            ]);
-
-            // 3. Atualiza Tabela anamnesis
-            if (!empty($data['subscription_id'])) {
-                $sqlAnam = "UPDATE anamnesis SET 
-                                course_reason = :reason, expectations = :expect, 
-                                who_recomend = :rec, is_medium = :med, 
-                                religion = :rel, religion_mention = :rel_m, 
-                                is_tule_member = :tule, obs_motived = :obs, first_time = :first
-                            WHERE subscribed_id = :sid";
-                $this->conn->prepare($sqlAnam)->execute([
-                    ':reason' => $data['course_reason'] ?? null,
-                    ':expect' => $data['expectations'] ?? null,
-                    ':rec'    => $data['who_recomend'] ?? null,
-                    ':med'    => $data['is_medium'] ?? 0,
-                    ':rel'    => $data['religion'] ?? 0,
-                    ':rel_m'  => $data['religion_mention'] ?? null,
-                    ':tule'   => $data['is_tule_member'] ?? 0,
-                    ':obs'    => $data['obs_motived'] ?? null,
-                    ':first'  => $data['first_time'] ?? 1,
-                    ':sid'    => $data['subscription_id']
-                ]);
-            }
-
-            return true;
-        } catch (\Exception $e) {
-            throw $e;
-        }
+        // IMPORTANTE: Usando $this->conn que vem do seu BaseModel Singleton
+        $stmt = $this->conn->query($sql);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
+   
 }

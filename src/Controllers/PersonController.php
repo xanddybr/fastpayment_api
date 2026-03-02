@@ -23,60 +23,6 @@ class PersonController {
         }
     }
 
-    public function show(Request $request, Response $response, array $args) {
-        try {
-            $id = $args['id'];
-            $data = $this->personModel->getFullProfile($id);
-
-            if (!$data) {
-                return $this->jsonResponse($response, ["error" => "Usuário não encontrado"], 404);
-            }
-
-            // Organizando o objeto para o Front-end
-            $profile = [
-                "id" => $data[0]['id'],
-                "full_name" => $data[0]['full_name'],
-                "email" => $data[0]['email'],
-                "phone" => $data[0]['phone'],
-                "details" => [
-                    "activity_professional" => $data[0]['activity_professional'],
-                    "address" => [
-                        "street" => $data[0]['street'],
-                        "number" => $data[0]['number'],
-                        "neighborhood" => $data[0]['neighborhood'],
-                        "city" => $data[0]['city']
-                    ]
-                ],
-                "subscriptions" => []
-            ];
-
-           foreach ($data as $row) {
-                if ($row['subscription_id']) {
-                    $profile['subscriptions'][] = [
-                        "course" => $row['course_name'],
-                        "date" => $row['course_date'],
-                        "status" => $row['subscription_status'],
-                        "anamnesis" => [
-                            "first_time" => (int)$row['first_time'],
-                            "who_recomend" => $row['who_recomend'],
-                            "is_medium" => (int)$row['is_medium'],
-                            "is_tule_member" => (int)$row['is_tule_member'],
-                            "religion" => (int)$row['religion'],
-                            "religion_mention" => $row['religion_mention'],
-                            "course_reason" => $row['course_reason'],
-                            "expectations" => $row['expectations'],
-                            "obs_motived" => $row['obs_motived']
-                        ]
-                    ];
-                }
-            }
-
-            return $this->jsonResponse($response, $profile);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
-        }
-    }
-
 
     public function updatePassword(Request $request, Response $response) {
         $data = $request->getParsedBody();

@@ -54,6 +54,7 @@ $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
 // Auth
 $app->post('/login', \App\Controllers\AuthController::class . ':login');
+
 $app->post('/logout', function ($request, $response) {
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
@@ -61,13 +62,6 @@ $app->post('/logout', function ($request, $response) {
     session_destroy();
     $response->getBody()->write(json_encode(["status" => "tchau"]));
     return $response->withHeader('Content-Type', 'application/json');
-});
-
-$app->get('/api/auth/check', function (Request $request, Response $response) {
-    if (isset($_SESSION['user_id'])) {
-        return $response->withStatus(200);
-    }
-    return $response->withStatus(401);
 });
 
 // Fluxo de Inscrição
@@ -86,6 +80,12 @@ $app->get('/api/cron/schedules-cleanup', \App\Controllers\ScheduleController::cl
 // -----------------------------------------------------------------------------
 
 $app->group('', function ($group) {
+
+    $group->get('/auth/check', function (Request $request, Response $response) {
+        if (isset($_SESSION['user_id'])) {
+            return $response->withStatus(200);
+        }
+    });
     
     $group->group('/schedules', function ($g) {
         $g->get('', \App\Controllers\ScheduleController::class . ':listAdminSchedules');
@@ -115,8 +115,7 @@ $app->group('', function ($group) {
     $group->get('/financial/history', \App\Controllers\RegistrationController::class . ':paymentHistory');
     $group->get('/subscribers', \App\Controllers\RegistrationController::class . ':listAllSubscribers');
 
-    $group->get('/persons', \App\Controllers\PersonController::class . ':index');
-    $group->get('/persons/{id}', \App\Controllers\PersonController::class . ':show');
+    $group->get('/persons', \App\Controllers\PersonController::class . ':listAll');
     $group->post('/persons', \App\Controllers\PersonController::class . ':store');
     $group->delete('/persons/{id}', \App\Controllers\PersonController::class . ':remove');
     $group->patch('/persons/password-reset', \App\Controllers\PersonController::class . ':updatePassword');
