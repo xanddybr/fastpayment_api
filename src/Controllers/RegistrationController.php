@@ -12,10 +12,34 @@ class RegistrationController {
 
     private $registrationModel;
 
-    public function __construct() {
+   public function __construct() {
         $this->registrationModel = new Registration();
     }
+    
 
+    public function create($request, $response) {
+        $data = $request->getParsedBody();
+        
+        try {
+            $personModel = new \App\Models\Person(); 
+            $id = $personModel->saveCompleteRegistration($data);
+            
+            $response->getBody()->write(json_encode([
+                "status" => "sucesso", 
+                "subscribed_id" => $id,
+                "mensagem" => "Inscrição realizada com sucesso!"
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "erro", 
+                "mensagem" => "Falha ao processar inscrição: " . $e->getMessage()
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+    }
+    
    public function listAllSubscribers($request, $response) {
         try {
             // Se o seu padrão for Singleton, você provavelmente usa algo como:

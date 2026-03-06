@@ -196,36 +196,29 @@ class Person extends BaseModel {
 
     public function getAllSubscribers() {
         $sql = "SELECT 
-                    p.id as person_id,
-                    p.full_name, 
-                    p.email,
-                    pd.phone, 
-                    pd.activity_professional, 
-                    pd.neighborhood, 
-                    pd.city,
-                    es.id as subscribed_id,
-                    es.status as subscription_status,
-                    es.created_at as data_inscricao,
-                    t.payer_email,
-                    t.amount as valor_pago,
-                    t.payment_status,
-                    t.updated_at as data_pagamento,
-                    a.course_reason, 
-                    a.expectations, 
-                    a.who_recomend, 
-                    a.is_medium, 
-                    a.religion, 
-                    a.religion_mention, 
-                    a.is_tule_member, 
-                    a.obs_motived, 
-                    a.first_time
-                FROM persons p
-                INNER JOIN person_details pd ON p.id = pd.person_id
-                INNER JOIN events_subscribed es ON p.id = es.person_id
-                LEFT JOIN transactions t ON (p.id = t.person_id AND es.schedule_id = t.schedule_id)
-                LEFT JOIN anamnesis a ON es.id = a.subscribed_id
-                WHERE p.type_person_id = 2 
-                ORDER BY es.created_at DESC";
+            p.id as person_id, p.full_name, p.email,
+            pd.phone, pd.activity_professional, pd.neighborhood, pd.city,
+            es.id as subscribed_id, es.status as subscription_status, es.created_at as data_inscricao,
+            t.payer_email, t.amount as valor_pago, t.payment_status,
+            -- Dados do Schedule/Evento (Para resolver o UNDEFINED)
+            e.name as event_name, 
+            et.name as type_name,
+            u.name as unit_name,
+            s.scheduled_at,
+            -- Dados da Anamnese
+            a.course_reason, a.expectations, a.who_recomend, a.is_medium, 
+            a.religion, a.religion_mention, a.is_tule_member, a.obs_motived, a.first_time
+        FROM persons p
+        INNER JOIN person_details pd ON p.id = pd.person_id
+        INNER JOIN events_subscribed es ON p.id = es.person_id
+        INNER JOIN schedules s ON es.schedule_id = s.id
+        INNER JOIN events e ON s.event_id = e.id
+        INNER JOIN event_types et ON s.event_type_id = et.id
+        INNER JOIN units u ON s.unit_id = u.id
+        LEFT JOIN transactions t ON (p.id = t.person_id AND es.schedule_id = t.schedule_id)
+        LEFT JOIN anamnesis a ON es.id = a.subscribed_id
+        WHERE p.type_person_id = 2 
+        ORDER BY es.created_at DESC;";
 
         // IMPORTANTE: Usando $this->conn que vem do seu BaseModel Singleton
         $stmt = $this->conn->query($sql);

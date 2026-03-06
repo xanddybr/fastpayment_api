@@ -72,6 +72,7 @@ $app->post('/api/auth/validate-code', \App\Controllers\AuthController::class . '
 $app->post('/api/checkout/pay', \App\Controllers\TransactionController::class . ':createPayment');
 $app->get('/api/checkout/check-status', \App\Controllers\TransactionController::class . ':checkStatus');
 
+$app->post('/api/public/register', \App\Controllers\RegistrationController::class . ':create');
 $app->post('/webhook/mercadopago', \App\Controllers\PaymentController::class . ':webhook');
 $app->get('/api/cron/schedules-cleanup', \App\Controllers\ScheduleController::class . ':closeExpiredSchedules');
 
