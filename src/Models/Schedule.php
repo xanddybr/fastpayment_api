@@ -20,7 +20,7 @@ class Schedule extends BaseModel {
 
     public function getAllAdmin() {
         $query = "SELECT s.id as schedule_id, e.name as event_name, e.price as event_price,
-                         et.name as type_name, u.name as unit_name, s.scheduled_at, 
+                         et.name as type_name, u.name as unit_name, s.scheduled_at, s.duration_minutes,
                          s.vacancies, s.status, e.slug
                   FROM schedules s
                   JOIN units u ON s.unit_id = u.id
@@ -32,7 +32,7 @@ class Schedule extends BaseModel {
 
     public function getAvailable($eventSlug = null, $typeSlug = null) {
         $sql = "SELECT s.id as schedule_id, e.name as event_name, e.price as event_price,
-                       et.name as type_name, u.name as unit_name, s.scheduled_at, 
+                       et.name as type_name, u.name as unit_name, s.scheduled_at, s.duration_minutes,
                        s.vacancies, e.slug as event_slug, et.slug as type_slug
                 FROM schedules s
                 JOIN events e ON s.event_id = e.id

@@ -128,7 +128,7 @@ $app->group('', function ($group) {
     $group->get('/subscribers', \App\Controllers\RegistrationController::class . ':listAllSubscribers');
 
     $group->get('/persons', \App\Controllers\PersonController::class . ':listAll');
-    $group->post('/persons', \App\Controllers\PersonController::class . ':store');
+    $group->post('/person/create', \App\Controllers\PersonController::class . ':store');
     $group->delete('/persons/{id}', \App\Controllers\PersonController::class . ':remove');
     $group->patch('/persons/password-reset', \App\Controllers\PersonController::class . ':updatePassword');
 
