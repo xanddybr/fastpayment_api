@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 namespace Cake\Database\Schema;
 
+use Cake\Database\Driver\Mysql;
 use Cake\Database\DriverFeatureEnum;
 use Cake\Database\Exception\DatabaseException;
 use PDOException;
@@ -144,12 +145,15 @@ class MysqlSchemaDialect extends SchemaDialect
                 'comment' => $row['Comment'],
                 'length' => null,
             ];
-            if (isset($row['Extra']) && $row['Extra'] === 'auto_increment') {
+            $extra = trim($row['Extra'] ?? '');
+            if ($extra === 'auto_increment') {
                 $field['autoIncrement'] = true;
             }
-            if ($row['Extra'] === 'on update CURRENT_TIMESTAMP') {
-                $field['onUpdate'] = 'CURRENT_TIMESTAMP';
-            } elseif ($row['Extra'] === 'on update current_timestamp()') {
+            // Depending on the MySQL Version the extra column can contain/start with DEFAULT_GENERATED as well
+            if (
+                str_ends_with($extra, 'on update CURRENT_TIMESTAMP') ||
+                str_ends_with($extra, 'on update current_timestamp()')
+            ) {
                 $field['onUpdate'] = 'CURRENT_TIMESTAMP';
             }
 
@@ -165,8 +169,9 @@ class MysqlSchemaDialect extends SchemaDialect
     }
 
     /**
-     * Describes geoemetry-specific column information.
+     * Describes geometry-specific column information.
      *
+     * @param string $table The table name.
      * @return array<string, array{name: string, srid: int}> The column information.
      */
     private function describeGeometryColumns(string $table): array
@@ -225,6 +230,14 @@ class MysqlSchemaDialect extends SchemaDialect
                 "\\1'\\3')",
                 $default,
             );
+        }
+
+        if (
+            $this->_driver instanceof Mysql &&
+            $this->_driver->isMariaDb() &&
+            $default === 'current_timestamp()'
+        ) {
+            return 'CURRENT_TIMESTAMP';
         }
 
         return $default;
@@ -382,8 +395,12 @@ class MysqlSchemaDialect extends SchemaDialect
             return ['type' => TableSchemaInterface::TYPE_BOOLEAN, 'length' => null];
         }
 
+        if ($col === 'bit') {
+            return ['type' => TableSchemaInterface::TYPE_BIT, 'length' => $length];
+        }
+
         $unsigned = (isset($matches[3]) && strtolower($matches[3]) === 'unsigned');
-        if (str_contains($col, 'bigint') || $col === 'bigint') {
+        if (str_contains($col, 'bigint')) {
             return ['type' => TableSchemaInterface::TYPE_BIGINTEGER, 'length' => null, 'unsigned' => $unsigned];
         }
         if ($col === 'tinyint') {
@@ -420,7 +437,12 @@ class MysqlSchemaDialect extends SchemaDialect
             $lengthName = substr($col, 0, -4);
             $length = TableSchema::$columnLengths[$lengthName] ?? $length;
 
-            return ['type' => TableSchemaInterface::TYPE_BINARY, 'length' => $length];
+            $result = ['type' => TableSchemaInterface::TYPE_BINARY, 'length' => $length];
+            if ($col === 'binary') {
+                $result['fixed'] = true;
+            }
+
+            return $result;
         }
         if (str_contains($col, 'float') || str_contains($col, 'double')) {
             return [
@@ -714,6 +736,7 @@ SQL;
             TableSchemaInterface::TYPE_POINT => ' POINT',
             TableSchemaInterface::TYPE_LINESTRING => ' LINESTRING',
             TableSchemaInterface::TYPE_POLYGON => ' POLYGON',
+            TableSchemaInterface::TYPE_BIT => ' BIT',
         ];
         $specialMap = [
             'string' => true,
@@ -759,10 +782,10 @@ SQL;
                         break;
                     }
 
-                    if ($column['length'] > 2) {
-                        $out .= ' VARBINARY';
-                    } else {
+                    if (!empty($column['fixed'])) {
                         $out .= ' BINARY';
+                    } else {
+                        $out .= ' VARBINARY';
                     }
                     break;
             }
@@ -774,6 +797,7 @@ SQL;
             TableSchemaInterface::TYPE_TINYINTEGER,
             TableSchemaInterface::TYPE_STRING,
             TableSchemaInterface::TYPE_BINARY,
+            TableSchemaInterface::TYPE_BIT,
         ];
         if (!isset($typeMap[$column['type']]) && !isset($specialMap[$column['type']])) {
             $out .= ' ' . strtoupper($column['type']);
@@ -823,6 +847,7 @@ SQL;
             TableSchemaInterface::TYPE_TEXT,
             TableSchemaInterface::TYPE_CHAR,
             TableSchemaInterface::TYPE_STRING,
+            TableSchemaInterface::TYPE_UUID,
         ];
         if (in_array($column['type'], $hasCollate, true) && isset($column['collate']) && $column['collate'] !== '') {
             $out .= ' COLLATE ' . $column['collate'];
@@ -903,7 +928,7 @@ SQL;
         $data = $schema->getColumn($name);
         assert($data !== null);
 
-        // TODO deprecrate Type defined schema mappings?
+        // TODO deprecate Type defined schema mappings?
         $sql = $this->_getTypeSpecificColumnSql($data['type'], $schema, $name);
         if ($sql !== null) {
             return $sql;

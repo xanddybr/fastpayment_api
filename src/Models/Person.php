@@ -23,6 +23,74 @@ class Person extends BaseModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+      public function saveCompleteRegistration($data) {
+        try {
+            $this->conn->beginTransaction();
+
+            // 1. Tabela `persons`
+            $sqlPerson = "INSERT INTO persons (full_name, email, status, type_person_id) 
+                        VALUES (?, ?, 'active', 2) 
+                        ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), full_name=VALUES(full_name)";
+            $stmt = $this->conn->prepare($sqlPerson);
+            $stmt->execute([
+                $data['student_full_name'] ?? $data['full_name'],
+                $data['student_email'] ?? $data['email']
+            ]);
+            $personId = $this->conn->lastInsertId();
+
+            // 2. Tabela `person_details`
+            $sqlDetails = "INSERT INTO person_details (person_id, activity_professional, phone, neighborhood, city) 
+                        VALUES (?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE activity_professional=VALUES(activity_professional), phone=VALUES(phone), neighborhood=VALUES(neighborhood), city=VALUES(city)";
+            $stmt = $this->conn->prepare($sqlDetails);
+            $stmt->execute([
+                $personId,
+                $data['activity_professional'],
+                $data['student_phone'] ?? $data['phone'],
+                $data['neighborhood'],
+                $data['city']
+            ]);
+
+            // 3. Tabela `events_subscribed` (Aqui definimos como 'confirmed')
+            $sqlSub = "INSERT INTO events_subscribed (person_id, schedule_id, status) 
+                    VALUES (?, ?, 'confirmed')";
+            $stmt = $this->conn->prepare($sqlSub);
+            $stmt->execute([$personId, $data['schedule_id']]);
+            $subscribedId = $this->conn->lastInsertId();
+
+            // 4. ATUALIZAÇÃO DE VAGAS NA TABELA `schedules` (O QUE ESTAVA FALTANDO)
+            // Subtrai 1 da coluna vacancies onde o ID for o selecionado
+            $sqlUpdateVacancies = "UPDATE schedules SET vacancies = vacancies - 1 WHERE id = ? AND vacancies > 0";
+            $stmtVac = $this->conn->prepare($sqlUpdateVacancies);
+            $stmtVac->execute([$data['schedule_id']]);
+
+            // 5. Tabela `anamnesis`
+            $sqlAnamnesis = "INSERT INTO anamnesis 
+                (subscribed_id, course_reason, expectations, is_medium, religion, religion_mention, is_tule_member, obs_motived, first_time) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmtAna = $this->conn->prepare($sqlAnamnesis);
+            $hasReligion = (!empty($data['religion_mention'])) ? 1 : 0;
+            $stmtAna->execute([
+                $subscribedId,
+                $data['course_reason'] ?? null,
+                $data['expectations'] ?? null,
+                isset($data['is_medium']) ? (int)$data['is_medium'] : 0,
+                $hasReligion,
+                $data['religion_mention'] ?? null,
+                isset($data['is_tule_member']) ? (int)$data['is_tule_member'] : 0,
+                $data['obs_motived'] ?? null,
+                isset($data['first_time']) ? (int)$data['first_time'] : 0
+            ]);
+
+            $this->conn->commit();
+            return $subscribedId;
+
+        } catch (\Exception $e) {
+            if ($this->conn->inTransaction()) { $this->conn->rollBack(); }
+            throw $e;
+        }
+    }
+
     public function findAll() {
         // O DISTINCT garante que se a linha inteira for repetida, ele mostre apenas uma
         $sql = "SELECT DISTINCT 
@@ -60,57 +128,7 @@ class Person extends BaseModel {
     /**
      * Guarda ou Atualiza Pessoa e Detalhes (Transacional)
      */
-    public function saveUnified($data) {
-        try {
-
-            $sqlPerson = "INSERT INTO persons (full_name, email, password, type_person_id, status) 
-                          VALUES (:name, :email, :pass, :type_id, 'active')
-                          ON DUPLICATE KEY UPDATE full_name = :name, type_person_id = :type_id";
-            
-            $stmtPerson = $this->conn->prepare($sqlPerson);
-            
-            $password = (isset($data['password']) && password_get_info($data['password'])['algo']) 
-                        ? $data['password'] 
-                        : password_hash($data['password'] ?? '123456', PASSWORD_DEFAULT);
-
-            $stmtPerson->execute([
-                ':name'    => $data['full_name'],
-                ':email'   => $data['email'],
-                ':pass'    => $password,
-                ':type_id' => $data['type_person_id'] ?? 1
-            ]);
-
-            $personId = $this->conn->lastInsertId();
-            if (!$personId) {
-                $existingPerson = $this->findByEmail($data['email']);
-                // Se não encontrar a pessoa, lança exceção para evitar erro de array offset null
-                if (!$existingPerson) throw new Exception("Erro ao recuperar ID da pessoa após salvar.");
-                $personId = $existingPerson['id'];
-            }
-
-            $details = $data['details'] ?? [];
-            $sqlDetails = "INSERT INTO person_details (person_id, activity_professional, phone, street, number, neighborhood, city)
-                           VALUES (:p_id, :act, :phone, :street, :num, :neigh, :city)
-                           ON DUPLICATE KEY UPDATE 
-                           activity_professional = :act, phone = :phone, street = :street, 
-                           number = :num, neighborhood = :neigh, city = :city";
-
-            $stmtDetails = $this->conn->prepare($sqlDetails);
-            $stmtDetails->execute([
-                ':p_id'   => $personId,
-                ':act'    => $details['activity_professional'] ?? null,
-                ':phone'  => $details['phone'] ?? null,
-                ':street' => $details['street'] ?? null,
-                ':num'    => $details['number'] ?? null,
-                ':neigh'  => $details['neighborhood'] ?? null,
-                ':city'   => $details['city'] ?? null
-            ]);
-
-            return $personId;
-        } catch (Exception $e) {
-            throw $e;
-        }
-    }
+   
 
     public function updatePasswordByEmail($email, $newPassword) {
         try {

@@ -33,11 +33,22 @@ $app->addRoutingMiddleware();
 $app->add(function (Request $request, $handler) {
     $response = $handler->handle($request);
     
-    // Detecta a origem para permitir tanto local quanto remoto
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? 'https://misturadeluz.com';
+    // Lista de origens permitidas
+    $allowedOrigins = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'https://misturadeluz.com',
+        'http://localhost:8080'
+    ];
+
+    // Pega a origem da requisição atual
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+    // Se a origem estiver na nossa lista, usamos ela, senão usamos a padrão de produção
+    $resultOrigin = in_array($origin, $allowedOrigins) ? $origin : 'https://misturadeluz.com';
     
     return $response
-        ->withHeader('Access-Control-Allow-Origin', $origin)
+        ->withHeader('Access-Control-Allow-Origin', $resultOrigin)
         ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT')
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
         ->withHeader('Access-Control-Allow-Credentials', 'true');

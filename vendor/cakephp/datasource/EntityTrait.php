@@ -27,6 +27,8 @@ use function Cake\Core\deprecationWarning;
 /**
  * An entity represents a single result row from a repository. It exposes the
  * methods for retrieving and storing fields associated in this row.
+ *
+ * @require-implements \Cake\Datasource\EntityInterface
  */
 trait EntityTrait
 {
@@ -109,7 +111,7 @@ trait EntityTrait
     /**
      * Map of fields in this entity that can be safely mass assigned, each
      * field name points to a boolean indicating its status. An empty array
-     * means no fields are accessible for mass assigment.
+     * means no fields are accessible for mass assignment.
      *
      * The special field '\*' can also be mapped, meaning that any other field
      * not defined in the map will take its value. For example, `'*' => true`
@@ -797,7 +799,7 @@ trait EntityTrait
             return static::$_accessors[$class][$type][$property];
         }
 
-        if (!empty(static::$_accessors[$class])) {
+        if (isset(static::$_accessors[$class])) {
             return static::$_accessors[$class][$type][$property] = '';
         }
 
@@ -1178,6 +1180,13 @@ trait EntityTrait
     {
         if (is_string($errors)) {
             $errors = [$errors];
+        }
+
+        // Handle dotted field paths by creating nested error structure
+        if (str_contains($field, '.')) {
+            $nested = Hash::insert([], $field, $errors);
+
+            return $this->setErrors($nested, $overwrite);
         }
 
         return $this->setErrors([$field => $errors], $overwrite);
