@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Mar 09, 2026 at 11:42 PM
+-- Generation Time: Mar 10, 2026 at 07:33 AM
 -- Server version: 8.0.42-0ubuntu0.24.04.1
 -- PHP Version: 8.4.17
 
@@ -42,18 +42,6 @@ CREATE TABLE `anamnesis` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Dumping data for table `anamnesis`
---
-
-INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `expectations`, `who_recomend`, `is_medium`, `religion`, `religion_mention`, `is_tule_member`, `obs_motived`, `first_time`, `created_at`) VALUES
-(1, 1, 'gosto deste curso', 'conseguir melhorar como pessoa', 'uma amiga do tule', 1, 1, 'TESE tenda espirita santo expedito', 0, 'preciso crescer espiritualmente', 1, '2026-02-13 03:46:40'),
-(2, 2, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-13 16:28:36'),
-(3, 3, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-13 16:35:58'),
-(4, 5, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-13 16:51:11'),
-(6, 8, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-19 01:32:11'),
-(7, 10, 'Busca espiritual', 'Aprender Reiki', 'Amigo', 1, 1, 'Espiritismo', 0, NULL, 1, '2026-03-06 05:56:34');
-
 -- --------------------------------------------------------
 
 --
@@ -73,7 +61,6 @@ CREATE TABLE `events` (
 
 INSERT INTO `events` (`id`, `name`, `price`, `slug`) VALUES
 (2, 'Tarot Basico', 0.83, 'yoga'),
-(6, 'Jogo de Buzios', 0.15, 'jogo-de-buzios'),
 (8, 'Riki Nivel 1', 0.89, 'riki-2');
 
 -- --------------------------------------------------------
@@ -90,18 +77,6 @@ CREATE TABLE `events_subscribed` (
   `status` varchar(20) DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `events_subscribed`
---
-
-INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`, `status`, `created_at`) VALUES
-(1, 2, 10, 123451789, 'confirmed', '2026-02-13 03:46:40'),
-(2, 8, 18, 123456789, 'confirmed', '2026-02-13 16:28:36'),
-(3, 8, 18, 999888777, 'confirmed', '2026-02-13 16:35:58'),
-(5, 1, 18, 999888771, 'confirmed', '2026-02-13 16:51:11'),
-(8, 7, 18, 999888772, 'confirmed', '2026-02-19 01:32:11'),
-(10, 10, 10, NULL, 'paid', '2026-03-06 05:56:34');
 
 -- --------------------------------------------------------
 
@@ -122,7 +97,8 @@ CREATE TABLE `event_types` (
 INSERT INTO `event_types` (`id`, `name`, `slug`) VALUES
 (1, 'Curso', 'curso'),
 (6, 'Presencial', 'presencial'),
-(9, 'Palestra', 'palestra');
+(9, 'Palestra', 'palestra'),
+(10, 'Atendimento', 'atendimento');
 
 -- --------------------------------------------------------
 
@@ -192,8 +168,7 @@ INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_p
 (1, 'Administrador do Sistema', 'admin@gmail.com', '$2y$12$PkenEiMEvSS4NNy8ed.F3OlBF11j4zxtGT.sy9.D1o5tlRQ9S5GyK', 'active', 1, '2026-01-29 13:19:25'),
 (2, 'Aline Santana', 'aline@gmail.com', '$2y$12$isEBehAToycdZfLmX3iGN.UAtq/tnjwxCbM47dh0x9j8.It0wH4kq', 'active', 2, '2026-01-29 13:19:25'),
 (7, 'Natalia', 'nat2026@gmail.com', '$2y$12$9oWeujvEDDZq9IOVoG3mX.2DuJKYZWo8zVB0LNcyyKXWPr6//Cia.', 'active', 1, '2026-02-12 19:47:09'),
-(8, 'Alexandre', 'xanddybr@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54'),
-(10, 'Cliente X', 'cliente@teste.com', NULL, 'active', 2, '2026-03-06 05:56:34');
+(8, 'Alexandre', 'xanddybr@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54');
 
 -- --------------------------------------------------------
 
@@ -211,15 +186,6 @@ CREATE TABLE `person_details` (
   `neighborhood` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `person_details`
---
-
-INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone`, `street`, `number`, `neighborhood`, `city`) VALUES
-(6, 7, 'Dev', '2193945728', NULL, NULL, NULL, 'RJ'),
-(7, 8, NULL, NULL, NULL, NULL, NULL, NULL),
-(9, 10, 'Desenvolvedor', '11999999999', NULL, NULL, 'Centro', 'São Paulo');
 
 -- --------------------------------------------------------
 
@@ -270,6 +236,7 @@ CREATE TABLE `schedules` (
   `unit_id` int UNSIGNED DEFAULT NULL,
   `vacancies` int DEFAULT '0',
   `scheduled_at` datetime DEFAULT NULL,
+  `duration_minutes` int DEFAULT NULL,
   `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'available',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -278,10 +245,9 @@ CREATE TABLE `schedules` (
 -- Dumping data for table `schedules`
 --
 
-INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `status`, `created_at`) VALUES
-(10, 2, 1, 6, 9, '2026-03-30 22:00:00', 'available', '2026-02-28 04:25:01'),
-(15, 6, 6, 8, 37, '2026-03-30 13:27:00', 'available', '2026-02-28 13:15:13'),
-(18, 8, 1, 9, 4, '2026-03-30 22:43:00', 'available', '2026-02-28 16:03:23');
+INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `duration_minutes`, `status`, `created_at`) VALUES
+(10, 2, 1, 6, 6, '2026-03-30 22:00:00', 60, 'available', '2026-02-28 04:25:01'),
+(19, 8, 1, 17, 20, '2026-03-10 10:19:00', 120, 'available', '2026-03-10 05:21:46');
 
 -- --------------------------------------------------------
 
@@ -305,10 +271,6 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`id`, `schedule_id`, `person_id`, `payer_email`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
-(2, 18, 8, NULL, 'approved', 0.00, '2026-02-13 16:28:36', '2026-02-13 16:28:36'),
-(3, 18, 8, NULL, 'approved', 0.00, '2026-02-13 16:35:58', '2026-02-13 16:35:58'),
-(5, 18, 1, NULL, 'approved', 2.00, '2026-02-13 16:51:11', '2026-02-13 16:51:11'),
-(8, 18, 7, NULL, 'approved', 0.89, '2026-02-19 01:32:11', '2026-02-19 01:32:11'),
 (9, 10, 10, 'comprador@email.com', 'approved', 150.00, '2026-03-06 06:07:41', '2026-03-06 06:07:41');
 
 -- --------------------------------------------------------
@@ -350,7 +312,8 @@ CREATE TABLE `units` (
 INSERT INTO `units` (`id`, `name`, `slug`) VALUES
 (6, 'Barra', 'barra'),
 (8, 'Pechincha', 'pechincha'),
-(9, 'On-line', 'on-line');
+(9, 'On-line', 'on-line'),
+(17, 'CURICICA', 'curicica');
 
 --
 -- Indexes for dumped tables
@@ -459,7 +422,7 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `anamnesis`
 --
 ALTER TABLE `anamnesis`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `events`
@@ -471,13 +434,13 @@ ALTER TABLE `events`
 -- AUTO_INCREMENT for table `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `event_types`
 --
 ALTER TABLE `event_types`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `history_logs`
@@ -489,13 +452,13 @@ ALTER TABLE `history_logs`
 -- AUTO_INCREMENT for table `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `person_details`
 --
 ALTER TABLE `person_details`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `registered_codes`
@@ -507,7 +470,7 @@ ALTER TABLE `registered_codes`
 -- AUTO_INCREMENT for table `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `transactions`
@@ -525,7 +488,7 @@ ALTER TABLE `types_person`
 -- AUTO_INCREMENT for table `units`
 --
 ALTER TABLE `units`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- Constraints for dumped tables
