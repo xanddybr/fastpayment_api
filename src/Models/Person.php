@@ -140,6 +140,12 @@ class Person extends BaseModel {
      * Guarda ou Atualiza Pessoa e Detalhes (Transacional)
      */
    
+    public function getAdminEmails() {
+        $sql = "SELECT email FROM persons WHERE type_person_id = 1 AND status = 'active'";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
 
     public function updatePasswordByEmail($email, $newPassword) {
         try {
@@ -285,3 +291,5 @@ public function validateOTP($email, $code) {
     }
    
 }
+
+echo 'teste Person';
