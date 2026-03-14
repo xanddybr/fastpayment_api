@@ -1,44 +1,18 @@
 <?php
-// webhook.php na raiz da pasta api
-
-require_once __DIR__ . '/vendor/autoload.php';
-
-// --- ADICIONE ESTAS LINHAS PARA CARREGAR O .ENV ---
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
-// -------------------------------------------------
-
-require_once __DIR__ . '/src/Config/Database.php';
-require_once __DIR__ . '/src/Models/Registration.php';
-
-use App\Models\Registration;
-use App\Config\Database;
+// misturadeluz.com/fastpayment/api/webhook.php
+require 'vendor/autoload.php'; // Se usar Slim/PHPMailer
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-if ($data) {
-    try {
-        // Agora o Database::getConnection() vai encontrar as chaves no $_ENV
-        $db = Database::getConnection(); 
-        $model = new Registration($db);
+// O Mercado Pago envia o ID do pagamento
+$resourceId = $data['data']['id'] ?? ($data['id'] ?? null);
 
-        $personId = $data['person_id'] ?? null;
-        $scheduleId = $data['schedule_id'] ?? null;
-        $paymentId = $data['payment_id'] ?? ($data['data']['id'] ?? 'SIMULACAO-REMOTO');
-
-        if (!$personId || !$scheduleId) {
-            throw new Exception("Dados insuficientes.");
-        }
-
-        $model->completeSubscription($personId, $scheduleId, $paymentId);
-        
-        header('Content-Type: application/json');
-        echo json_encode(["status" => "sucesso", "ambiente" => "webhook_avulso_carregado"]);
-        
-    } catch (Exception $e) {
-        http_response_code(400);
-        header('Content-Type: application/json');
-        echo json_encode(["error" => $e->getMessage()]);
-    }
+if ($resourceId) {
+    // 1. Consultar o Mercado Pago via SDK ou CURL para confirmar o status 'approved'
+    // 2. No banco de dados, marcar a transaction como 'approved'
+    // 3. Importante: Atualizar as vagas (Schedules) aqui!
+    // 4. Disparar o EmailService::sendPaymentConfirmation para Cliente e Admins (Type 1)
 }
+
+http_response_code(200); // Responde 200 para o MP parar de enviar
