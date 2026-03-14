@@ -44,6 +44,34 @@ class AuthController {
         return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Sessão encerrada."]);
     }
 
+    public function validateCode(Request $request, Response $response) {
+        $data = $request->getParsedBody();
+        $email = $data['email'] ?? null;
+        $code = $data['code'] ?? null;
+
+        if (!$email || !$code) {
+            return $this->jsonResponse($response, [
+                "status" => "erro", 
+                "mensagem" => "E-mail e código são obrigatórios"
+            ], 400);
+        }
+
+        // O Controller pergunta ao Model se o código é válido
+        $isValid = $this->personModel->validateOTP($email, $code);
+
+        if ($isValid) {
+            return $this->jsonResponse($response, [
+                "status" => "sucesso", 
+                "mensagem" => "Código validado com sucesso!"
+            ]);
+        }
+
+        return $this->jsonResponse($response, [
+            "status" => "erro", 
+            "mensagem" => "Código inválido ou expirado."
+        ], 401);
+    }
+
     public function generateValidationCode(Request $request, Response $response) {
         $data = $request->getParsedBody();
         $email = $data['email'] ?? null;

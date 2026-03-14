@@ -17,18 +17,27 @@ class RegistrationController {
     }
     
 
-    public function create($request, $response) {
+   public function create($request, $response) {
         $data = $request->getParsedBody();
         
         try {
+            // Verificação básica: sem o schedule_id não há inscrição
+            if (empty($data['schedule_id'])) {
+                throw new \Exception("ID do agendamento não fornecido.");
+            }
+
             $personModel = new \App\Models\Person(); 
+            
+            // O saveCompleteRegistration deve orquestrar os inserts em:
+            // persons -> person_details -> events_subscribed -> anamnesis
             $id = $personModel->saveCompleteRegistration($data);
             
             $response->getBody()->write(json_encode([
                 "status" => "sucesso", 
                 "subscribed_id" => $id,
-                "mensagem" => "Inscrição realizada com sucesso!"
+                "mensagem" => "Inscrição realizada com sucesso! Nossa equipe entrará em contato."
             ]));
+            
             return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
 
         } catch (\Exception $e) {

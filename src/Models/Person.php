@@ -23,18 +23,19 @@ class Person extends BaseModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-      public function saveCompleteRegistration($data) {
+    public function saveCompleteRegistration($data) {
         try {
             $this->conn->beginTransaction();
 
             // 1. Tabela `persons`
+            // Garante que o ID seja recuperado mesmo se o e-mail já existir
             $sqlPerson = "INSERT INTO persons (full_name, email, status, type_person_id) 
                         VALUES (?, ?, 'active', 2) 
                         ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), full_name=VALUES(full_name)";
             $stmt = $this->conn->prepare($sqlPerson);
             $stmt->execute([
-                $data['student_full_name'] ?? $data['full_name'],
-                $data['student_email'] ?? $data['email']
+                $data['student_full_name'] ?? ($data['full_name'] ?? null),
+                $data['student_email'] ?? ($data['email'] ?? null)
             ]);
             $personId = $this->conn->lastInsertId();
 
@@ -45,41 +46,51 @@ class Person extends BaseModel {
             $stmt = $this->conn->prepare($sqlDetails);
             $stmt->execute([
                 $personId,
-                $data['activity_professional'],
-                $data['student_phone'] ?? $data['phone'],
-                $data['neighborhood'],
-                $data['city']
+                $data['activity_professional'] ?? null,
+                $data['student_phone'] ?? ($data['phone'] ?? null),
+                $data['neighborhood'] ?? null,
+                $data['city'] ?? null
             ]);
 
-            // 3. Tabela `events_subscribed` (Aqui definimos como 'confirmed')
+            // 3. Tabela `events_subscribed`
             $sqlSub = "INSERT INTO events_subscribed (person_id, schedule_id, status) 
                     VALUES (?, ?, 'confirmed')";
             $stmt = $this->conn->prepare($sqlSub);
             $stmt->execute([$personId, $data['schedule_id']]);
             $subscribedId = $this->conn->lastInsertId();
 
-            // 4. ATUALIZAÇÃO DE VAGAS NA TABELA `schedules` (O QUE ESTAVA FALTANDO)
-            // Subtrai 1 da coluna vacancies onde o ID for o selecionado
-            $sqlUpdateVacancies = "UPDATE schedules SET vacancies = vacancies - 1 WHERE id = ? AND vacancies > 0";
-            $stmtVac = $this->conn->prepare($sqlUpdateVacancies);
-            $stmtVac->execute([$data['schedule_id']]);
+            // 4. ATUALIZAÇÃO DE VAGAS (Lógica de Proteção)
+            // IMPORTANTE: Só subtraímos a vaga se ela NÃO foi subtraída no Checkout.
+            // Se 'is_pre_paid' for falso, significa que é uma inscrição que ainda não tirou a vaga.
+            if (!isset($data['is_pre_paid']) || $data['is_pre_paid'] == 0) {
+                $sqlUpdateVacancies = "UPDATE schedules SET vacancies = vacancies - 1 WHERE id = ? AND vacancies > 0";
+                $stmtVac = $this->conn->prepare($sqlUpdateVacancies);
+                $stmtVac->execute([$data['schedule_id']]);
+                
+                if ($stmtVac->rowCount() === 0) {
+                    throw new Exception("Desculpe, as vagas para este evento acabaram de esgotar.");
+                }
+            }
 
-            // 5. Tabela `anamnesis`
+            // 5. Tabela `anamnesis` (Ficha Técnica)
             $sqlAnamnesis = "INSERT INTO anamnesis 
                 (subscribed_id, course_reason, expectations, is_medium, religion, religion_mention, is_tule_member, obs_motived, first_time) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmtAna = $this->conn->prepare($sqlAnamnesis);
+            
+            // Tratamento de conversão para TinyInt (0 ou 1)
             $hasReligion = (!empty($data['religion_mention'])) ? 1 : 0;
+            
             $stmtAna->execute([
                 $subscribedId,
                 $data['course_reason'] ?? null,
                 $data['expectations'] ?? null,
-                isset($data['is_medium']) ? (int)$data['is_medium'] : 0,
+                (isset($data['is_medium']) && ($data['is_medium'] == 1 || $data['is_medium'] == 'on')) ? 1 : 0,
                 $hasReligion,
                 $data['religion_mention'] ?? null,
-                isset($data['is_tule_member']) ? (int)$data['is_tule_member'] : 0,
+                (isset($data['is_tule_member']) && ($data['is_tule_member'] == 1 || $data['is_tule_member'] == 'on')) ? 1 : 0,
                 $data['obs_motived'] ?? null,
-                isset($data['first_time']) ? (int)$data['first_time'] : 0
+                (isset($data['first_time']) && ($data['first_time'] == 1 || $data['first_time'] == 'on')) ? 1 : 0
             ]);
 
             $this->conn->commit();
@@ -129,6 +140,12 @@ class Person extends BaseModel {
      * Guarda ou Atualiza Pessoa e Detalhes (Transacional)
      */
    
+    public function getAdminEmails() {
+        $sql = "SELECT email FROM persons WHERE type_person_id = 1 AND status = 'active'";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
 
     public function updatePasswordByEmail($email, $newPassword) {
         try {
@@ -164,26 +181,27 @@ class Person extends BaseModel {
     }
 
     // --- LÓGICA DE OTP (Vinculada à Pessoa) ---
-    public function createValidationCode($email, $phone) {
-        // Invalida códigos antigos
-        $this->conn->prepare("UPDATE registered_codes SET status = 'substituido' WHERE email = :email AND status = 'pendente'")
-                   ->execute([':email' => $email]);
+   // --- LÓGICA DE OTP (Corrigida conforme o schema.sql) ---
+public function createValidationCode($email, $phone = null) {
+    // Invalida códigos antigos
+    $this->conn->prepare("UPDATE registered_codes SET status = 'expirado' WHERE email = :email AND status = 'pendente'")
+               ->execute([':email' => $email]);
 
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $expiresAt = date('Y-m-d H:i:s', strtotime("+5 minutes"));
+    $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $expiresAt = date('Y-m-d H:i:s', strtotime("+5 minutes"));
 
-        $sql = "INSERT INTO registered_codes (email, phone, validation_method, code, expires_at, status) 
-                VALUES (:email, :phone, 'email', :code, :expiresAt, 'pendente')";
-        
-        $this->conn->prepare($sql)->execute([
-            ':email' => $email, 
-            ':phone' => $phone, 
-            ':code' => $code, 
-            ':expiresAt' => $expiresAt
-        ]);
+    // Removidas as colunas 'phone' e 'validation_method' que não existem no SQL
+    $sql = "INSERT INTO registered_codes (email, code, expires_at, status) 
+            VALUES (:email, :code, :expiresAt, 'pendente')";
+    
+    $this->conn->prepare($sql)->execute([
+        ':email'     => $email, 
+        ':code'      => $code, 
+        ':expiresAt' => $expiresAt
+    ]);
 
-        return $code;
-    }
+    return $code;
+}
 
     /**
      * Card 8.1 / 11.1: Ficha Definitiva do Aluno
@@ -242,5 +260,36 @@ class Person extends BaseModel {
         $stmt = $this->conn->query($sql);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
+
+    /**
+ * Verifica se o código é válido e o marca como 'validado' caso positivo.
+ * Respeita a persistência e isola o SQL do Controller.
+ */
+public function validateOTP($email, $code) {
+        // 1. Busca o código pendente e dentro do prazo de expiração
+        $sql = "SELECT id FROM registered_codes 
+                WHERE email = :email 
+                AND code = :code 
+                AND status = 'pendente' 
+                AND expires_at > NOW() 
+                LIMIT 1";
+                
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':email' => $email, ':code' => $code]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result) {
+            // 2. Persistência: Atualiza para 'validado' para evitar reuso
+            $updateSql = "UPDATE registered_codes SET status = 'validado' WHERE id = :id";
+            $updateStmt = $this->conn->prepare($updateSql);
+            $updateStmt->execute([':id' => $result['id']]);
+            
+            return true;
+        }
+
+        return false;
+    }
    
 }
+
+echo 'teste Person';
