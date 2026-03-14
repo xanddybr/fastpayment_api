@@ -3,7 +3,11 @@
         'name' => '__root__',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
+<<<<<<< HEAD
         'reference' => 'b26ce163fb68a8996ccebdea1fcf27abc22c9956',
+=======
+        'reference' => '70f8cca70e560f287dc10c2a215b368093fbc9a6',
+>>>>>>> parent of 80aeaf5 (implement store duraction time)
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +17,11 @@
         '__root__' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
+<<<<<<< HEAD
             'reference' => 'b26ce163fb68a8996ccebdea1fcf27abc22c9956',
+=======
+            'reference' => '70f8cca70e560f287dc10c2a215b368093fbc9a6',
+>>>>>>> parent of 80aeaf5 (implement store duraction time)
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
