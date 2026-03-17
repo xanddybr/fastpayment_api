@@ -7,9 +7,10 @@ class EventType extends BaseModel {
     // O BaseModel já cuida do $this->conn via Singleton
 
     public function create($name, $slug) {
-        $stmt = $this->conn->prepare("INSERT INTO event_types (name, slug) VALUES (:name, :slug)");
+        $stmt = $this->conn->prepare("INSERT INTO event_types (name, description, slug) VALUES (:name, :description, :slug)");
         return $stmt->execute([
             ":name" => $name,
+            ":description" => null,
             ":slug" => $slug
         ]);
     }

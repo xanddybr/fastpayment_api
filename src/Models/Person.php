@@ -291,5 +291,3 @@ public function validateOTP($email, $code) {
     }
    
 }
-
-echo 'teste Person';

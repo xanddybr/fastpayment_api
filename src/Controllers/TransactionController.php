@@ -23,43 +23,43 @@ class TransactionController {
             return $this->jsonResponse($response, ["error" => "Dados insuficientes."], 400);
         }
 
-        // Token do .env (Sempre use trim para evitar espaços em branco fatais)
         $accessToken = trim($_ENV['MP_ACCESS_TOKEN'] ?? '');
 
         try {
-            // 1. Busca dados via Model
             $event = $this->transactionModel->getEventDetailsBySchedule($scheduleId);
 
             if (!$event) {
                 return $this->jsonResponse($response, ["error" => "Agendamento não encontrado."], 404);
             }
 
-           $description = "Inscrição: " . $event['name'] . " (" . $event['type_name'] . ") - Unidade: " . $event['unit_name'];
+            $description = "Inscrição: " . $event['name'] . " (" . $event['type_name'] . ") - Unidade: " . $event['unit_name'];
 
-                $preferenceData = [
-                    "items" => [[
-                        "title"       => $description,
-                        "quantity"    => 1,
-                        "unit_price"  => (float)$event['price'],
-                        "currency_id" => "BRL"
-                    ]],
-                    "payer" => ["email" => (string)$email],
-                    // External reference carrega o schedule_id para o Webhook saber qual vaga baixar
-                    "external_reference" => "FP-" . time() . "-" . $scheduleId, 
-                    "metadata" => [
-                        "schedule_id" => $scheduleId,
-                        "event_name"  => $event['name'],
-                        "unit_name"   => $event['unit_name']
-                    ],
-                    "back_urls" => [
-                        "success" => "https://misturadeluz.com/agenda/success", // Ajuste para sua URL real
-                        "failure" => "https://misturadeluz.com/agenda/failure",
-                        "pending" => "https://misturadeluz.com/agenda/pending"
-                    ],
-                    "auto_return" => "approved"
-                ];
+            $preferenceData = [
+                "items" => [[
+                    "title"       => $description,
+                    "quantity"    => 1,
+                    "unit_price"  => (float)$event['price'],
+                    "currency_id" => "BRL"
+                ]],
+                "payer" => ["email" => (string)$email],
+                
+                // --- A LINHA QUE VOCÊ PRECISA ESTÁ AQUI ---
+                "notification_url" => "https://misturadeluz.com/fastpayment/api/webhook.php",
+                
+                "external_reference" => "FP-" . time() . "-" . $scheduleId, 
+                "metadata" => [
+                    "schedule_id" => $scheduleId,
+                    "event_name"  => $event['name'],
+                    "unit_name"   => $event['unit_name']
+                ],
+                "back_urls" => [
+                    "success" => "https://misturadeluz.com/agenda/?status=success", // Ajustado para sua SPA ler o status
+                    "failure" => "https://misturadeluz.com/agenda/?status=failure",
+                    "pending" => "https://misturadeluz.com/agenda/?status=pending"
+                ],
+                "auto_return" => "approved"
+            ];
 
-            // 3. CHAMADA À API (Centralizada)
             $mp = $this->callMercadoPagoAPI($accessToken, $preferenceData);
 
             if (isset($mp['init_point'])) {
