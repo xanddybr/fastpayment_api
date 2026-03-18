@@ -6,15 +6,16 @@ use PDO;
 class Schedule extends BaseModel {
 
     public function create($data) {
-        $query = "INSERT INTO schedules (unit_id, event_id, event_type_id, vacancies, scheduled_at, status) 
-                  VALUES (:unit, :event, :type, :vacancies, :scheduled_at, 'available')";
+        $query = "INSERT INTO schedules (unit_id, event_id, event_type_id, vacancies, scheduled_at, duration_minutes, status) 
+                  VALUES (:unit, :event, :type, :vacancies, :scheduled_at, :duration, 'available')";
         $stmt = $this->conn->prepare($query);
-        return $stmt->execute([
+        return $stmt->execute([ 
             ":unit"         => $data['unit_id'], 
             ":event"        => $data['event_id'], 
             ":type"         => $data['event_type_id'],
-            ":vacancies"    => $data['vacancies'] ?? 1, 
-            ":scheduled_at" => $data['scheduled_at']
+            ":vacancies"    => $data['vacancies'], 
+            ":scheduled_at" => $data['scheduled_at'],
+            ":duration" => $data['duration_minutes']
         ]);
     }
 

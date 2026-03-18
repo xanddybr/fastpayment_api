@@ -13,24 +13,49 @@ class ScheduleController {
         $this->scheduleModel = new Schedule();
     }
 
-    public function store(Request $request, Response $response) {
+   public function store(Request $request, Response $response) {
         date_default_timezone_set('America/Sao_Paulo');
         try {
             $data = $request->getParsedBody();
             
-            // Validação de Campos
-            if (empty($data['scheduled_at']) || empty($data['event_id']) || empty($data['unit_id'])) {
-                return $this->jsonResponse($response, ["error" => "Dados incompletos, faltando objeto: {'unit_id': 0, 'event_id': 0, 'event_type_id': 0, 'vacancies': 0 }"], 400);
+            // 1. Validação de Campos Ampliada
+            // Verificamos se os novos campos (vacancies e duration_minutes) também estão presentes
+           if (
+                !isset($data['scheduled_at']) || 
+                !isset($data['event_id']) || 
+                !isset($data['event_type_id']) ||
+                !isset($data['unit_id']) ||
+                !isset($data['vacancies']) || $data['vacancies'] === '' ||
+                !isset($data['duration_minutes']) || $data['duration_minutes'] === ''
+            ) {
+                return $this->jsonResponse($response, ["error" => "Dados incompletos no formulário."], 400);
             }
 
-            // Regra de Negócio: 1 hora de antecedência
+            // 2. Regra de Negócio: 1 hora de antecedência
             $chosenTime = strtotime($data['scheduled_at']);
             if ($chosenTime < (time() + 3600)) {
                 return $this->jsonResponse($response, ["error" => "Agendamento requer 1h de antecedência."], 400);
             }
 
-            $this->scheduleModel->create($data);
-            return $this->jsonResponse($response, ["success" => true, "message" => "Agendamento salvo!"], 201);
+            // 3. Preparação do Payload para o Model
+            // Garantimos que os valores numéricos sejam tratados corretamente
+            $payload = [
+                'scheduled_at'     => $data['scheduled_at'],
+                'event_id'         => (int)$data['event_id'],
+                'unit_id'          => (int)$data['unit_id'],
+                'event_type_id'    => (int)$data['event_type_id'],
+                'vacancies'        => (int)$data['vacancies'],
+                'duration_minutes' => (int)$data['duration_minutes'],
+                'status'           => 'available' // Status padrão para novos horários
+            ];
+
+            // 4. Criação no Banco
+            $this->scheduleModel->create($payload);
+            
+            return $this->jsonResponse($response, [
+                "success" => true, 
+                "message" => "Agendamento de " . $payload['duration_minutes'] . "min salvo com sucesso!"
+            ], 201);
 
         } catch (Exception $e) {
             return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
