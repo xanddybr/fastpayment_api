@@ -3,11 +3,7 @@
         'name' => '__root__',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-<<<<<<< HEAD
-        'reference' => 'b26ce163fb68a8996ccebdea1fcf27abc22c9956',
-=======
-        'reference' => '70f8cca70e560f287dc10c2a215b368093fbc9a6',
->>>>>>> parent of 80aeaf5 (implement store duraction time)
+        'reference' => '1c874132a382c5c61948998b61c45ef4ccb0b5e3',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -17,20 +13,16 @@
         '__root__' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-<<<<<<< HEAD
-            'reference' => 'b26ce163fb68a8996ccebdea1fcf27abc22c9956',
-=======
-            'reference' => '70f8cca70e560f287dc10c2a215b368093fbc9a6',
->>>>>>> parent of 80aeaf5 (implement store duraction time)
+            'reference' => '1c874132a382c5c61948998b61c45ef4ccb0b5e3',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
         'cakephp/chronos' => array(
-            'pretty_version' => '3.3.1',
-            'version' => '3.3.1.0',
-            'reference' => '1e417fdd4a3c6602b6c4634cf54aa9b065127fa2',
+            'pretty_version' => '3.3.3',
+            'version' => '3.3.3.0',
+            'reference' => '960e7ecd5709fc186309b0733a18beecb37fd37e',
             'type' => 'library',
             'install_path' => __DIR__ . '/../cakephp/chronos',
             'aliases' => array(),
@@ -314,9 +306,9 @@
             'dev_requirement' => false,
         ),
         'robmorgan/phinx' => array(
-            'pretty_version' => '0.16.10',
-            'version' => '0.16.10.0',
-            'reference' => '83f83ec105e55e3abba7acc23c0272b5fcf66929',
+            'pretty_version' => '0.16.11',
+            'version' => '0.16.11.0',
+            'reference' => 'a03014fea316ba021fc0776982e5bed2d10228d4',
             'type' => 'library',
             'install_path' => __DIR__ . '/../robmorgan/phinx',
             'aliases' => array(),
@@ -341,18 +333,18 @@
             'dev_requirement' => false,
         ),
         'symfony/config' => array(
-            'pretty_version' => 'v7.4.7',
-            'version' => '7.4.7.0',
-            'reference' => '6c17162555bfb58957a55bb0e43e00035b6ae3d5',
+            'pretty_version' => 'v8.0.7',
+            'version' => '8.0.7.0',
+            'reference' => '9a34c52187112503d02903ab35e6e3783f580c29',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/config',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
         'symfony/console' => array(
-            'pretty_version' => 'v7.4.7',
-            'version' => '7.4.7.0',
-            'reference' => 'e1e6770440fb9c9b0cf725f81d1361ad1835329d',
+            'pretty_version' => 'v8.0.7',
+            'version' => '8.0.7.0',
+            'reference' => '15ed9008a4ebe2d6a78e4937f74e0c13ef2e618a',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/console',
             'aliases' => array(),

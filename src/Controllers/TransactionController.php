@@ -14,25 +14,41 @@ class TransactionController {
         $this->transactionModel = new TransactionModel();
     }
 
+    /**
+     * Creates a payment preference in Mercado Pago
+     */
     public function createPayment(Request $request, Response $response) {
         $data = $request->getParsedBody();
         $email = $data['email'] ?? null;
         $scheduleId = $data['schedule_id'] ?? null;
 
         if (!$scheduleId || !$email) {
-            return $this->jsonResponse($response, ["error" => "Dados insuficientes."], 400);
+            return $this->jsonResponse($response, ["error" => "Incomplete data."], 400);
         }
 
         $accessToken = trim($_ENV['MP_ACCESS_TOKEN'] ?? '');
 
         try {
+            // 1. Fetch event details from Model
             $event = $this->transactionModel->getEventDetailsBySchedule($scheduleId);
 
             if (!$event) {
-                return $this->jsonResponse($response, ["error" => "Agendamento não encontrado."], 404);
+                return $this->jsonResponse($response, ["error" => "Schedule not found."], 404);
             }
 
             $description = "Inscrição: " . $event['name'] . " (" . $event['type_name'] . ") - Unidade: " . $event['unit_name'];
+
+            // 2. Setup dynamic URLs (Local vs Production)
+            $isLocal = ($_SERVER['HTTP_HOST'] === 'localhost:8080' || $_SERVER['REMOTE_ADDR'] === '127.0.0.1');
+            
+            // WEBHOOK URL: If local, you must use NGROK. If production, use your domain.
+            $webhookUrl = $isLocal 
+                ? "https://SEU_NGROK_AQUI.ngrok-free.app/webhook.php" 
+                : "https://misturadeluz.com/fastpayment/api/webhook.php";
+
+            $redirectBase = $isLocal 
+                ? "http://localhost:5173" // Vite default port
+                : "https://misturadeluz.com/agenda";
 
             $preferenceData = [
                 "items" => [[
@@ -42,10 +58,7 @@ class TransactionController {
                     "currency_id" => "BRL"
                 ]],
                 "payer" => ["email" => (string)$email],
-                
-                // --- A LINHA QUE VOCÊ PRECISA ESTÁ AQUI ---
-                "notification_url" => "https://misturadeluz.com/fastpayment/api/webhook.php",
-                
+                "notification_url" => $webhookUrl,
                 "external_reference" => "FP-" . time() . "-" . $scheduleId, 
                 "metadata" => [
                     "schedule_id" => $scheduleId,
@@ -53,20 +66,21 @@ class TransactionController {
                     "unit_name"   => $event['unit_name']
                 ],
                 "back_urls" => [
-                    "success" => "https://misturadeluz.com/agenda/?status=success", // Ajustado para sua SPA ler o status
-                    "failure" => "https://misturadeluz.com/agenda/?status=failure",
-                    "pending" => "https://misturadeluz.com/agenda/?status=pending"
+                    "success" => $redirectBase . "/?status=success",
+                    "failure" => $redirectBase . "/?status=failure",
+                    "pending" => $redirectBase . "/?status=pending"
                 ],
                 "auto_return" => "approved"
             ];
 
-            $mp = $this->callMercadoPagoAPI($accessToken, $preferenceData);
+            // 3. Call Mercado Pago API
+            $mpResponse = $this->callMercadoPagoAPI($accessToken, $preferenceData);
 
-            if (isset($mp['init_point'])) {
-                return $this->jsonResponse($response, ["init_point" => $mp['init_point']]);
+            if (isset($mpResponse['init_point'])) {
+                return $this->jsonResponse($response, ["init_point" => $mpResponse['init_point']]);
             } 
             
-            return $this->jsonResponse($response, ["error" => "MP: " . ($mp['message'] ?? 'Erro API')], 400);
+            return $this->jsonResponse($response, ["error" => "MP API: " . ($mpResponse['message'] ?? 'Unknown Error')], 400);
 
         } catch (Exception $e) {
             return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
@@ -74,7 +88,88 @@ class TransactionController {
     }
 
     /**
-     * Encapsula o cURL para o código ficar limpo
+     * Process Mercado Pago Webhook Notifications
+     */
+    public function webhook(Request $request, Response $response) {
+        $params = $request->getQueryParams();
+        $accessToken = trim($_ENV['MP_ACCESS_TOKEN'] ?? '');
+
+        // IPN/Webhook logic: get payment ID
+        $paymentId = $params['data_id'] ?? $params['id'] ?? null;
+        $type = $params['type'] ?? ($params['topic'] ?? null);
+
+        if ($paymentId && ($type === 'payment' || $params['topic'] === 'payment')) {
+            
+            // SECURITY CHECK: Verify payment with Mercado Pago API
+            $ch = curl_init("https://api.mercadopago.com/v1/payments/" . $paymentId);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $accessToken]);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            
+            $result = curl_exec($ch);
+            $paymentData = json_decode($result, true);
+            curl_close($ch);
+
+            if (isset($paymentData['status'])) {
+                $status = $paymentData['status'];
+                $externalReference = $paymentData['external_reference'] ?? '';
+                $payerEmail = $paymentData['payer']['email'] ?? '';
+                
+                // Extract schedule_id from external_reference (FP-timestamp-ID)
+                $parts = explode('-', $externalReference);
+                $scheduleIdFromMP = end($parts); 
+
+                if ($status === 'approved') {
+                    // RESERVE VACANCY AND SAVE TRANSACTION
+                    $success = $this->transactionModel->confirmPaymentAndReserveVacancy(
+                        $externalReference, 
+                        $status, 
+                        $paymentId, 
+                        $scheduleIdFromMP,
+                        $payerEmail
+                    );
+
+                    if ($success) {
+                        // SEND CONFIRMATION EMAILS
+                        $eventData = $this->transactionModel->getEventDetailsBySchedule($scheduleIdFromMP);
+                        \App\Services\EmailService::sendPaymentConfirmation($payerEmail, $eventData);
+                        error_log("WEBHOOK SUCCESS: Vacancy reserved for " . $payerEmail);
+                    }
+                } else {
+                    $this->transactionModel->updatePaymentStatus($externalReference, $status, $paymentId);
+                    error_log("WEBHOOK UPDATE: Payment " . $paymentId . " status: " . $status);
+                }
+            }
+        }
+
+        return $response->withStatus(200);
+    }
+
+    /**
+     * Checks if a user has a pre-paid approved transaction
+     */
+    public function checkPayment(Request $request, Response $response) {
+        $data = $request->getParsedBody();
+        $email = $data['email'] ?? null;
+        $scheduleId = $data['schedule_id'] ?? null;
+
+        if (!$email || !$scheduleId) {
+            return $this->jsonResponse($response, ["has_paid" => false, "error" => "Incomplete data"], 400);
+        }
+
+        try {
+            $hasPaid = $this->transactionModel->verifyPaidTransaction($email, $scheduleId);
+            return $this->jsonResponse($response, [
+                "has_paid" => $hasPaid,
+                "message" => $hasPaid ? "Payment found!" : "No payment found."
+            ]);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["has_paid" => false, "error" => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * CURL Helper for Mercado Pago API
      */
     private function callMercadoPagoAPI($token, $payload) {
         $ch = curl_init("https://api.mercadopago.com/checkout/preferences");
@@ -96,98 +191,4 @@ class TransactionController {
         $response->getBody()->write(json_encode($data));
         return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
-
-    public function webhook(Request $request, Response $response) {
-        // 1. Captura de parâmetros iniciais
-        $params = $request->getQueryParams();
-        $accessToken = trim($_ENV['MP_ACCESS_TOKEN'] ?? '');
-
-        // O Mercado Pago envia o ID da operação de formas diferentes conforme a versão
-        $paymentId = $params['data_id'] ?? $params['id'] ?? null;
-        $type = $params['type'] ?? ($params['topic'] ?? null);
-
-        // Só processamos se for uma notificação de "payment"
-        if ($paymentId && ($type === 'payment' || $params['topic'] === 'payment' || isset($params['data_id']))) {
-            
-            // 2. CONSULTA DE SEGURANÇA (Anti-Fraude)
-            // Perguntamos diretamente à API do Mercado Pago se esse pagamento é real
-            $ch = curl_init("https://api.mercadopago.com/v1/payments/" . $paymentId);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                "Authorization: Bearer " . $accessToken
-            ]);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            
-            $result = curl_exec($ch);
-            $paymentData = json_decode($result, true);
-            curl_close($ch);
-
-            // 3. PROCESSAMENTO DOS DADOS RETORNADOS
-            if (isset($paymentData['status'])) {
-                $status = $paymentData['status'];
-                $externalReference = $paymentData['external_reference'] ?? '';
-                $payerEmail = $paymentData['payer']['email'] ?? '';
-                
-                // Extraímos o schedule_id do external_reference (FP-timestamp-ID)
-                $parts = explode('-', $externalReference);
-                $scheduleIdFromMP = end($parts); 
-
-                if ($status === 'approved') {
-                    // 4. RESERVA ESTRITA DA VAGA
-                    // Chama o Model para gravar a transação e baixar a vaga (-1)
-                    $success = $this->transactionModel->confirmPaymentAndReserveVacancy(
-                        $externalReference, 
-                        $status, 
-                        $paymentId, 
-                        $scheduleIdFromMP,
-                        $payerEmail
-                    );
-
-                    if ($success) {
-                        // 5. NOTIFICAÇÃO (Passo 4 do seu roteiro)
-                        // Busca detalhes do evento (unidade, data, nome) para o e-mail
-                        $eventData = $this->transactionModel->getEventDetailsBySchedule($scheduleIdFromMP);
-                        
-                        // Envia e-mails para Cliente e Vendedor
-                        \App\Services\EmailService::sendPaymentConfirmation($payerEmail, $eventData);
-                        
-                        error_log("WEBHOOK: Vaga reservada e e-mails enviados para: " . $payerEmail);
-                    }
-                } else {
-                    // Se o pagamento for negado, pendente ou cancelado
-                    // Apenas atualizamos o log de status na tabela transactions
-                    $this->transactionModel->updatePaymentStatus($externalReference, $status, $paymentId);
-                    error_log("WEBHOOK: Status do pagamento " . $paymentId . " atualizado para: " . $status);
-                }
-            }
-        }
-
-        // O Mercado Pago exige retorno 200 ou 201 para confirmar o recebimento
-        return $response->withStatus(200);
-    }
-
-    public function checkPayment(Request $request, Response $response) {
-        $data = $request->getParsedBody();
-        $email = $data['email'] ?? null;
-        $scheduleId = $data['schedule_id'] ?? null;
-
-        if (!$email || !$scheduleId) {
-            return $this->jsonResponse($response, ["has_paid" => false, "error" => "Dados incompletos"], 400);
-        }
-
-        try {
-            // Chamamos o Model para verificar na tabela transactions
-            // Note: você precisará criar o método 'verifyPaidTransaction' no seu TransactionModel
-            $hasPaid = $this->transactionModel->verifyPaidTransaction($email, $scheduleId);
-
-            return $this->jsonResponse($response, [
-                "has_paid" => $hasPaid,
-                "message" => $hasPaid ? "Pagamento localizado!" : "Nenhum pagamento encontrado."
-            ]);
-
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["has_paid" => false, "error" => $e->getMessage()], 500);
-        }
-    }
-   
 }

@@ -8,7 +8,7 @@ use Exception;
 class Transaction extends BaseModel {
     
     /**
-     * Passo 1: Busca detalhes ricos do evento para o Checkout (Item 3 do roteiro)
+     * Step 1: Fetch rich event details for Checkout
      */
     public function getEventDetailsBySchedule($scheduleId) {
         $sql = "SELECT e.name, e.price, ut.name as unit_name, et.name as type_name, s.scheduled_at
@@ -23,7 +23,9 @@ class Transaction extends BaseModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    
+    /**
+     * Checks if an approved transaction already exists for this user/event
+     */
     public function verifyPaidTransaction($email, $scheduleId) {
         $sql = "SELECT id FROM transactions 
                 WHERE payer_email = :email 
@@ -37,22 +39,23 @@ class Transaction extends BaseModel {
             ':sid'   => $scheduleId
         ]);
         
-        // Retorna true se achar uma linha, false se não achar
         return (bool)$stmt->fetch();
     }
 
     /**
-     * Passo 4: A função mestre que confirma o pagamento e RESERVA a vaga
+     * Step 4: Master function to confirm payment and RESERVE vacancy
      */
     public function confirmPaymentAndReserveVacancy($externalReference, $status, $paymentId, $scheduleId, $payerEmail) {
         try {
-            // Iniciamos a transação para garantir que se um falhar, nada salva
+            // Start database transaction
             $this->conn->beginTransaction();
 
-            // 1. Registra a transação na tabela transactions (conforme seu schema.sql)
-            // Buscamos o preço atual do evento no momento da inserção
+            // 1. Insert transaction record
+            // Note: Make sure your table has 'payment_id' column if you want to store MP reference
             $sqlInsert = "INSERT INTO transactions (schedule_id, payer_email, payment_status, amount, created_at, updated_at) 
-                          VALUES (:sid, :email, :status, (SELECT e.price FROM schedules s JOIN events e ON s.event_id = e.id WHERE s.id = :sid2), NOW(), NOW())";
+                          VALUES (:sid, :email, :status, 
+                          (SELECT e.price FROM schedules s JOIN events e ON s.event_id = e.id WHERE s.id = :sid2), 
+                          NOW(), NOW())";
             
             $stmtInsert = $this->conn->prepare($sqlInsert);
             $stmtInsert->execute([
@@ -62,7 +65,7 @@ class Transaction extends BaseModel {
                 ':status' => $status
             ]);
 
-            // 2. A "TRAVA": Só baixa a vaga se vacancies for maior que zero
+            // 2. THE LOCK: Only decrease vacancy if vacancies > 0
             $sqlUpdate = "UPDATE schedules 
                           SET vacancies = vacancies - 1 
                           WHERE id = :sid AND vacancies > 0";
@@ -70,9 +73,9 @@ class Transaction extends BaseModel {
             $stmtUpdate = $this->conn->prepare($sqlUpdate);
             $stmtUpdate->execute([':sid' => $scheduleId]);
 
-            // Validação crucial: Se o UPDATE não afetou nenhuma linha, é porque as vagas acabaram
+            // Validation: If no rows affected, the event just sold out
             if ($stmtUpdate->rowCount() === 0 && $status === 'approved') {
-                throw new Exception("Vagas esgotadas no momento do processamento.");
+                throw new Exception("Sold out during processing.");
             }
 
             $this->conn->commit();
@@ -80,28 +83,28 @@ class Transaction extends BaseModel {
 
         } catch (Exception $e) {
             $this->conn->rollBack();
-            error_log("ERRO TRANSACTION MODEL: " . $e->getMessage());
+            error_log("TRANSACTION MODEL ERROR: " . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Mantemos este para outros status (pendente, cancelado, etc) 
-     * que não envolvem reserva de vaga imediata
+     * Updates payment status for other cases (pending, cancelled, etc)
      */
     public function updatePaymentStatus($externalReference, $status, $paymentId) {
         $parts = explode('-', $externalReference);
         $scheduleId = end($parts);
 
-        $sql = "INSERT INTO transactions (schedule_id, payment_status, created_at) 
-                VALUES (:sid, :status, NOW()) 
-                ON DUPLICATE KEY UPDATE payment_status = :status2, updated_at = NOW()";
+        $sql = "UPDATE transactions 
+                SET payment_status = :status, updated_at = NOW() 
+                WHERE schedule_id = :sid AND payer_email = (SELECT payer_email FROM (SELECT payer_email FROM transactions WHERE schedule_id = :sid2 ORDER BY id DESC LIMIT 1) as t)";
         
+        // Simple fallback to keep track of statuses
         $stmt = $this->conn->prepare($sql);
         return $stmt->execute([
             ':sid' => $scheduleId,
-            ':status' => $status,
-            ':status2' => $status
+            ':sid2' => $scheduleId,
+            ':status' => $status
         ]);
     }
 }

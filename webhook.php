@@ -1,18 +1,20 @@
 <?php
-// misturadeluz.com/fastpayment/api/webhook.php
-require 'vendor/autoload.php'; // Se usar Slim/PHPMailer
+require_once __DIR__ . '/vendor/autoload.php';
 
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
+// Load Environment Variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 
-// O Mercado Pago envia o ID do pagamento
-$resourceId = $data['data']['id'] ?? ($data['id'] ?? null);
+use App\Controllers\TransactionController;
+use Slim\Psr7\Factory\ServerRequestFactory;
+use Slim\Psr7\Factory\ResponseFactory;
 
-if ($resourceId) {
-    // 1. Consultar o Mercado Pago via SDK ou CURL para confirmar o status 'approved'
-    // 2. No banco de dados, marcar a transaction como 'approved'
-    // 3. Importante: Atualizar as vagas (Schedules) aqui!
-    // 4. Disparar o EmailService::sendPaymentConfirmation para Cliente e Admins (Type 1)
-}
+// Handle the request manually since it's a standalone file
+$request = ServerRequestFactory::createFromGlobals();
+$response = (new ResponseFactory())->createResponse();
 
-http_response_code(200); // Responde 200 para o MP parar de enviar
+$controller = new TransactionController();
+$controller->webhook($request, $response);
+
+http_response_code(200);
+echo "Notification received.";
