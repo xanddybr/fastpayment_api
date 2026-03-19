@@ -20,14 +20,8 @@
     // 3. MIDDLEWARES GLOBAIS
     $app->addBodyParsingMiddleware();
     $app->addRoutingMiddleware();
-
-    // 2. Ajuste de BasePath Inteligente
-    $isLocal = (php_sapi_name() === 'cli-server');
-    if ($isLocal) {
-        $app->setBasePath(''); 
-    } else {
-        $app->setBasePath('/agenda/api/public');
-    }
+    
+    $app->setBasePath('');
 
 
     // --- ALTERAÇÃO CIRÚRGICA: MIDDLEWARE DE CORS ---
@@ -56,15 +50,12 @@
     });
 
     $adminMiddleware = new \App\Middlewares\SessionMiddleware(); 
-
-    // 4. CONFIGURAÇÃO DE ERROS
     $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
     // -----------------------------------------------------------------------------
     // 🟢 ROTAS PÚBLICAS
     // -----------------------------------------------------------------------------
 
-    // Auth
     $app->post('/login', \App\Controllers\AuthController::class . ':login');
 
     $app->post('/logout', function ($request, $response) {
@@ -87,8 +78,8 @@
     $app->get('/api/cron/schedules-cleanup', \App\Controllers\ScheduleController::class . ':closeExpiredSchedules');
     $app->post('/api/public/register', \App\Controllers\RegistrationController::class . ':create');
 
-    $app->post('/check-payment', \App\Controllers\TransactionController::class . ':checkPayment');
-    $app->post('/webhook/mercadopago', \App\Controllers\PaymentController::class . ':webhook');
+    $app->post('/api/check-payment', \App\Controllers\TransactionController::class . ':checkPayment');
+    $app->post('/api/webhook/mercadopago', \App\Controllers\PaymentController::class . ':webhook');
 
 
     // -----------------------------------------------------------------------------
