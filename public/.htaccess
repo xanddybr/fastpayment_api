@@ -1,15 +1,15 @@
-# Impede a listagem de diretórios (evita o 403 se ele achar que units é pasta)
-Options -Indexes
-
-# Garante que ele não tente adivinhar nomes
-Options -MultiViews
-
 RewriteEngine On
 
-# Se a URL for exatamente a pasta public, redireciona pro index.php
-RewriteRule ^$ index.php [L]
+# Define a base para o redirecionamento
+RewriteBase /agenda/api/public/
 
-# Se não for um arquivo real, manda pro index.php
+# Impede acesso a diretórios
+Options -Indexes
+Options -MultiViews
+
+# Se for um arquivo ou pasta real, abre normalmente
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+
+# Caso contrário, manda tudo para o index.php
 RewriteRule ^ index.php [QSA,L]

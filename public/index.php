@@ -21,7 +21,12 @@
     $app->addBodyParsingMiddleware();
     $app->addRoutingMiddleware();
     
-    $app->setBasePath('');
+    if ($_SERVER['HTTP_HOST'] === 'localhost:8080') {
+        $app->setBasePath('');
+    } else {
+        // Se a URL é misturadeluz.com/fastpayment/api/public
+        $app->setBasePath('/agenda/api/public');
+    }
 
 
     // --- ALTERAÇÃO CIRÚRGICA: MIDDLEWARE DE CORS ---
@@ -50,6 +55,8 @@
     });
 
     $adminMiddleware = new \App\Middlewares\SessionMiddleware(); 
+
+    // 4. CONFIGURAÇÃO DE ERROS
     $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
     // -----------------------------------------------------------------------------
