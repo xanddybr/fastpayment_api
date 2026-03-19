@@ -12,6 +12,27 @@ class Person extends BaseModel {
 
     // Nota: O construtor não é necessário, pois o BaseModel já faz o trabalho.
 
+    public function create($data) {
+        // Criptografa a senha para não salvar em texto puro
+        $hashedPassword = password_hash($data['password'], PASSWORD_BCRYPT);
+
+        $sql = "INSERT INTO persons (full_name, email, password, created_at) 
+                VALUES (:full_name, :email, :password, NOW())";
+        
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(':full_name', $data['full_name']);
+            $stmt->bindParam(':email', $data['email']);
+            $stmt->bindParam(':password', $hashedPassword);
+            
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            // Se o e-mail já existir e for UNIQUE no banco, vai cair aqui
+            error_log("Erro ao criar pessoa: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function findByEmail($email) {
         $sql = "SELECT p.*, tp.name as role 
                 FROM persons p 

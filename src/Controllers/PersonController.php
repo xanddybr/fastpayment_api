@@ -91,6 +91,33 @@ class PersonController {
         }
     }
 
+    public function store(Request $request, Response $response) {
+        $data = $request->getParsedBody();
+
+        // Validação básica dos campos obrigatórios
+        if (empty($data['full_name']) || empty($data['email']) || empty($data['password'])) {
+            $response->getBody()->write(json_encode([
+                "error" => "Dados incompletos. Nome, e-mail e senha são obrigatórios."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        try {
+            $success = $this->personModel->create($data);
+
+            if ($success) {
+                $response->getBody()->write(json_encode(["message" => "Usuário criado com sucesso!"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+            } else {
+                $response->getBody()->write(json_encode(["error" => "Erro ao salvar. Verifique se o e-mail já está cadastrado."]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+            }
+        } catch (Exception $e) {
+            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
     /**
      * Card 8.1: Recebe o POST/PUT para atualizar a ficha
      */
@@ -119,54 +146,5 @@ class PersonController {
             ->withHeader('Content-Type', 'application/json')
             ->withStatus($status);
     }
-
-    public function store(Request $request, Response $response) {
-    // 1. Pega a conexão PDO diretamente
-    $db = $this->personModel->getConnection();
-
-    try {
-        $data = $request->getParsedBody();
-        
-        if (empty($data['email']) || empty($data['full_name'])) {
-            return $this->jsonResponse($response, ["error" => "Nome e E-mail são obrigatórios"], 400);
-        }
-
-        // 2. Antes de qualquer coisa, limpa transações que ficaram "penduradas" de erros anteriores
-        // (Isso é um truque para destravar o ambiente de teste)
-        while ($db->inTransaction()) {
-            $db->rollBack();
-        }
-
-        // 3. Verifica e-mail
-        $stmt = $db->prepare("SELECT id FROM persons WHERE email = :email");
-        $stmt->execute([':email' => $data['email']]);
-        if ($stmt->fetch()) {
-            return $this->jsonResponse($response, ["error" => "Este e-mail já está cadastrado"], 400);
-        }
-
-        // 4. Inicia a transação de forma segura
-        $db->beginTransaction();
-
-        if (!empty($data['password'])) {
-            $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
-        }
-
-        // 5. Salva (Certifique-se que o saveUnified NÃO abra transação lá dentro)
-        $personId = $this->personModel->saveUnified($data);
-
-        $db->commit();
-
-        return $this->jsonResponse($response, [
-            "status" => "sucesso",
-            "id" => $personId
-        ], 201);
-
-    } catch (Exception $e) {
-        if ($db->inTransaction()) {
-            $db->rollBack();
-        }
-        return $this->jsonResponse($response, ["error" => "Falha no banco: " . $e->getMessage()], 500);
-    }
-}
     
 }
