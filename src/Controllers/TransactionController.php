@@ -49,7 +49,7 @@ public function createPayment(Request $request, Response $response) {
             // Webhook precisa de URL acessível externamente (NGROK se for local)
             $webhookUrl = $isLocal 
                 ? "https://SUA_URL_NGROK_AQUI.ngrok-free.app/api/webhook/mercadopago" 
-                : "https://misturadeluz.com/fastpayment/api/public/webhook/mercadopago";
+                : "https://misturadeluz.com/agenda/api/public/webhook/mercadopago";
 
             // 3. Montagem da Preferência (CORRIGIDO PARA O MP)
            // No TransactionController.php, dentro de createPayment
@@ -73,7 +73,7 @@ public function createPayment(Request $request, Response $response) {
                 ],
                 "auto_return" => "approved",
                 "external_reference" => "FP-" . time() . "-" . $scheduleId,
-                "notification_url" => "https://misturadeluz.com/fastpayment/api/public/webhook/mercadopago",
+                "notification_url" => "https://misturadeluz.com/agenda/api/public/webhook/mercadopago",
                 "binary_mode" => true // Força aprovação ou reprovação imediata, sem "pendente"
             ];
 
