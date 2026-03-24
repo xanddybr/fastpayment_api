@@ -1,4 +1,5 @@
     <?php
+    
     // 1. Removidos headers manuais do topo para evitar erro 500 (Headers already sent)
 
     require __DIR__ . '/../vendor/autoload.php';
@@ -21,13 +22,16 @@
     $app->addBodyParsingMiddleware();
     $app->addRoutingMiddleware();
     
-    if ($_SERVER['HTTP_HOST'] === 'localhost:8080') {
-        $app->setBasePath('');
-    } else {
-        // Se a URL é misturadeluz.com/fastpayment/api/public
-        $app->setBasePath('/agenda/api/public');
-    }
+   // Verifica se é localhost OU se a URL contém 'ngrok-free.app'
+    $isLocal = ($_SERVER['HTTP_HOST'] === 'localhost:8080');
+    $isNgrok = (strpos($_SERVER['HTTP_HOST'], 'ngrok-free.app') !== false);
 
+        if ($isLocal || $isNgrok) {
+            $app->setBasePath(''); 
+        } else {
+            // Para o servidor de produção real
+            $app->setBasePath('/agenda/api/public');
+        }
 
     // --- ALTERAÇÃO CIRÚRGICA: MIDDLEWARE DE CORS ---
     $app->add(function (Request $request, $handler) {
@@ -104,25 +108,25 @@
         $group->group('/schedules', function ($g) {
             $g->get('', \App\Controllers\ScheduleController::class . ':listAdminSchedules');
             $g->post('', \App\Controllers\ScheduleController::class . ':store');
-            $g->delete('/{id}', \App\Controllers\ScheduleController::class . ':delete');
+            $g->delete('/{id:[0-9]+}', \App\Controllers\ScheduleController::class . ':delete');
         });
 
         $group->group('/units', function ($g) {
             $g->get('', \App\Controllers\UnitController::class . ':list');
             $g->post('', \App\Controllers\UnitController::class . ':store');
-            $g->delete('/{id}', \App\Controllers\UnitController::class . ':delete');
+            $g->delete('/{id:[0-9]+}', \App\Controllers\UnitController::class . ':delete');
         });
 
         $group->group('/events', function ($g) {
             $g->get('', \App\Controllers\EventController::class . ':list');
             $g->post('', \App\Controllers\EventController::class . ':store');
-            $g->delete('/{id}', \App\Controllers\EventController::class . ':delete');
+            $g->delete('/{id:[0-9]+}', \App\Controllers\EventController::class . ':delete');
         });
 
         $group->group('/event-types', function ($g) {
             $g->get('', \App\Controllers\EventTypeController::class . ':list');
             $g->post('', \App\Controllers\EventTypeController::class . ':store');
-            $g->delete('/{id}', \App\Controllers\EventTypeController::class . ':delete');
+            $g->delete('/{id:[0-9]+}', \App\Controllers\EventTypeController::class . ':delete');
         });
 
         $group->get('/dashboard/summary', \App\Controllers\RegistrationController::class . ':getDashboardSummary');
@@ -131,7 +135,7 @@
 
         $group->get('/persons', \App\Controllers\PersonController::class . ':listAll');
         $group->post('/person', \App\Controllers\PersonController::class . ':store');
-        $group->delete('/persons/{id}', \App\Controllers\PersonController::class . ':remove');
+        $group->delete('/persons/{id:[0-9]+}', \App\Controllers\PersonController::class . ':remove');
         $group->patch('/persons/password-reset', \App\Controllers\PersonController::class . ':updatePassword');
 
     })->add($adminMiddleware);

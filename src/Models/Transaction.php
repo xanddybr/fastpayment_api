@@ -45,27 +45,40 @@ class Transaction extends BaseModel {
     /**
      * Step 4: Master function to confirm payment and RESERVE vacancy
      */
-    public function confirmPaymentAndReserveVacancy($externalReference, $status, $paymentId, $scheduleId, $payerEmail) {
-        try {
-            // Start database transaction
-            $this->conn->beginTransaction();
+   // Dentro do seu Transaction.php (Model)
 
-            // 1. Insert transaction record
-            // Note: Make sure your table has 'payment_id' column if you want to store MP reference
-            $sqlInsert = "INSERT INTO transactions (schedule_id, payer_email, payment_status, amount, created_at, updated_at) 
-                          VALUES (:sid, :email, :status, 
-                          (SELECT e.price FROM schedules s JOIN events e ON s.event_id = e.id WHERE s.id = :sid2), 
-                          NOW(), NOW())";
-            
-            $stmtInsert = $this->conn->prepare($sqlInsert);
-            $stmtInsert->execute([
-                ':sid'    => $scheduleId,
-                ':sid2'   => $scheduleId,
-                ':email'  => $payerEmail,
-                ':status' => $status
-            ]);
+public function confirmPaymentAndReserveVacancy($externalReference, $status, $paymentId, $scheduleId, $payerEmail) {
+    try {
+        $this->conn->beginTransaction();
 
-            // 2. THE LOCK: Only decrease vacancy if vacancies > 0
+        // 1. Verificamos se essa transação já foi registrada (evita duplicidade no Webhook)
+        $checkSql = "SELECT id FROM transactions WHERE payment_id = :pid LIMIT 1";
+        $checkStmt = $this->conn->prepare($checkSql);
+        $checkStmt->execute([':pid' => $paymentId]);
+        
+        if ($checkStmt->fetch()) {
+            $this->conn->rollBack();
+            return true; // Já processado, apenas ignoramos
+        }
+
+        // 2. Inserir o registro da transação
+        $sqlInsert = "INSERT INTO transactions (schedule_id, payer_email, payment_status, payment_id, amount, created_at, updated_at) 
+                      SELECT :sid, :email, :status, :pid, e.price, NOW(), NOW()
+                      FROM schedules s 
+                      JOIN events e ON s.event_id = e.id 
+                      WHERE s.id = :sid2";
+        
+        $stmtInsert = $this->conn->prepare($sqlInsert);
+        $stmtInsert->execute([
+            ':sid'    => $scheduleId,
+            ':sid2'   => $scheduleId,
+            ':email'  => $payerEmail,
+            ':status' => $status,
+            ':pid'    => $paymentId
+        ]);
+
+        // 3. BAIXA DA VAGA (Só se aprovado)
+        if ($status === 'approved') {
             $sqlUpdate = "UPDATE schedules 
                           SET vacancies = vacancies - 1 
                           WHERE id = :sid AND vacancies > 0";
@@ -73,20 +86,23 @@ class Transaction extends BaseModel {
             $stmtUpdate = $this->conn->prepare($sqlUpdate);
             $stmtUpdate->execute([':sid' => $scheduleId]);
 
-            // Validation: If no rows affected, the event just sold out
-            if ($stmtUpdate->rowCount() === 0 && $status === 'approved') {
-                throw new Exception("Sold out during processing.");
+            if ($stmtUpdate->rowCount() === 0) {
+                throw new Exception("Falha ao baixar vaga: Curso esgotado ou ID inválido.");
             }
-
-            $this->conn->commit();
-            return true;
-
-        } catch (Exception $e) {
-            $this->conn->rollBack();
-            error_log("TRANSACTION MODEL ERROR: " . $e->getMessage());
-            return false;
         }
+
+        $this->conn->commit();
+        error_log("SUCESSO: Vaga baixada para o schedule $scheduleId");
+        return true;
+
+    } catch (Exception $e) {
+        if ($this->conn->inTransaction()) {
+            $this->conn->rollBack();
+        }
+        error_log("ERRO NO MODEL: " . $e->getMessage());
+        return false;
     }
+}
 
     /**
      * Updates payment status for other cases (pending, cancelled, etc)
