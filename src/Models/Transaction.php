@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use PDO;
@@ -7,14 +6,10 @@ use Exception;
 
 class Transaction extends BaseModel {
     
-    /**
-     * Step 1: Fetch rich event details for Checkout
-     */
     public function getEventDetailsBySchedule($scheduleId) {
-        $sql = "SELECT e.name, e.price, ut.name as unit_name, et.name as type_name, s.scheduled_at
+        $sql = "SELECT e.name, e.price, et.name as type_name
                 FROM schedules s 
                 JOIN events e ON s.event_id = e.id 
-                JOIN units ut ON s.unit_id = ut.id
                 JOIN event_types et ON s.event_type_id = et.id
                 WHERE s.id = :sid LIMIT 1";
         
@@ -23,129 +18,117 @@ class Transaction extends BaseModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Checks if an approved transaction already exists for this user/event
-     */
     public function verifyPaidTransaction($email, $scheduleId) {
         $sql = "SELECT id FROM transactions 
-                WHERE payer_email = :email 
-                AND schedule_id = :sid 
-                AND payment_status = 'approved' 
-                LIMIT 1";
-                
+                WHERE payer_email = :email AND schedule_id = :sid AND payment_status = 'approved' LIMIT 1";
         $stmt = $this->conn->prepare($sql);
-        $stmt->execute([
-            ':email' => $email,
-            ':sid'   => $scheduleId
-        ]);
-        
+        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
         return (bool)$stmt->fetch();
     }
 
-    public function createPendingTransaction($scheduleId, $email, $preferenceId, $amount) {
-    $sql = "INSERT INTO transactions (schedule_id, payer_email, payment_id, amount, payment_status, created_at) 
-            VALUES (:sid, :email, :pid, :amount, 'pending', NOW())";
-    
+    // 1. Grava a transação inicial
+public function createPendingTransaction($scheduleId, $personId, $email, $amount, $externalReference) {
+    $sql = "INSERT INTO transactions (
+                schedule_id, 
+                person_id,
+                payer_email, 
+                external_reference, 
+                amount, 
+                payment_status
+            ) VALUES (:sid, :pid, :email, :ref, :amount, 'pending')";
+
     $stmt = $this->conn->prepare($sql);
     return $stmt->execute([
-        ':sid' => $scheduleId,
-        ':email' => $email,
-        ':pid' => $preferenceId,
+        ':sid'    => $scheduleId,
+        ':pid'    => $personId, // Se não tiver o ID do usuário agora, passe null
+        ':email'  => $email,
+        ':ref'    => $externalReference,
         ':amount' => $amount
     ]);
 }
 
-    /**
-     * Step 4: Master function to confirm payment and RESERVE vacancy
-     */
-   // Dentro do seu Transaction.php (Model)
-
-public function confirmPaymentAndReserveVacancy($externalReference, $status, $paymentId, $scheduleId, $payerEmail) {
-
-    error_log("--- INICIO WEBHOOK DEBUG ---");
-    error_log("Procurando Payment ID: " . $paymentId);
-    error_log("Schedule ID enviado: " . $scheduleId);
-
-try {
-        $this->conn->beginTransaction();
-
-        // 1. Buscamos a transação existente que criamos no checkout (Etapa Pending)
-        $checkSql = "SELECT id, payment_status FROM transactions WHERE payment_id = :pid LIMIT 1";
-        $checkStmt = $this->conn->prepare($checkSql);
-        $checkStmt->execute([':pid' => $paymentId]);
-        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Se a transação não existe ou já foi aprovada, não fazemos nada
-        if (!$existing) {
-            error_log("WEBHOOK: Transação $paymentId não encontrada no banco.");
-            $this->conn->rollBack();
-            return false; 
-        }
-
-        if ($existing['payment_status'] === 'approved') {
-            error_log("WEBHOOK: Transação $paymentId já estava aprovada.");
-            $this->conn->rollBack();
-            return true; 
-        }
-
-        // 2. ATUALIZAMOS a transação existente para 'approved'
-        $sqlUpdateTrans = "UPDATE transactions 
-                           SET payment_status = :status, updated_at = NOW() 
-                           WHERE payment_id = :pid";
-        
-        $stmtUpdateTrans = $this->conn->prepare($sqlUpdateTrans);
-        $stmtUpdateTrans->execute([
-            ':status' => $status,
-            ':pid'    => $paymentId
-        ]);
-
-        // 3. BAIXA DA VAGA (Apenas se o status vindo for 'approved')
-        if ($status === 'approved') {
-            // Conferindo nomes do seu schema: tabela 'schedules', coluna 'vacancies'
-            $sqlUpdateVaga = "UPDATE schedules 
-                              SET vacancies = vacancies - 1 
-                              WHERE id = :sid AND vacancies > 0";
-            
-            $stmtUpdateVaga = $this->conn->prepare($sqlUpdateVaga);
-            $stmtUpdateVaga->execute([':sid' => $scheduleId]);
-
-            // Se rowCount for 0, ou o ID tá errado ou acabou a vaga
-            if ($stmtUpdateVaga->rowCount() === 0) {
-                error_log("ERRO: Não foi possível subtrair vaga para schedule $scheduleId");
-                throw new Exception("Falha ao baixar vaga: Curso esgotado ou ID inválido.");
-            }
-        }
-
-        $this->conn->commit();
-        error_log("SUCESSO: Status atualizado e vaga baixada para schedule $scheduleId");
-        return true;
-
-    } catch (Exception $e) {
-        if ($this->conn->inTransaction()) {
-            $this->conn->rollBack();
-        }
-        error_log("ERRO NO MODEL: " . $e->getMessage());
-        return false;
-    }
+// 2. Atualiza o preference_id gerado pelo Mercado Pago
+public function updatePreferenceId($externalReference, $preferenceId) {
+    $sql = "UPDATE transactions SET preference_id = :pref WHERE external_reference = :ref";
+    $stmt = $this->conn->prepare($sql);
+    return $stmt->execute([':pref' => $preferenceId, ':ref' => $externalReference]);
 }
 
-    /**
-     * Updates payment status for other cases (pending, cancelled, etc)
-     */
-    public function updatePaymentStatus($externalReference, $status, $paymentId) {
-        $parts = explode('-', $externalReference);
-        $scheduleId = end($parts);
+// 3. O Webhook usa esta para confirmar o pagamento e baixar a vaga
+public function confirmPayment($paymentId, $externalReference) {
+    $sql = "UPDATE transactions 
+            SET payment_status = 'approved', 
+                payment_id = :pid 
+            WHERE external_reference = :ref AND payment_status = 'pending'";
 
-        $sql = "UPDATE transactions 
-                SET payment_status = :status, updated_at = NOW() 
-                WHERE schedule_id = :sid AND payer_email = (SELECT payer_email FROM (SELECT payer_email FROM transactions WHERE schedule_id = :sid2 ORDER BY id DESC LIMIT 1) as t)";
-        
-        // Simple fallback to keep track of statuses
+    $stmt = $this->conn->prepare($sql);
+    $success = $stmt->execute([':pid' => $paymentId, ':ref' => $externalReference]);
+
+    if ($success && $stmt->rowCount() > 0) {
+        // Busca o schedule_id para decrementar a vaga
+        $sqlInfo = "SELECT schedule_id FROM transactions WHERE external_reference = :ref";
+        $stmtInfo = $this->conn->prepare($sqlInfo);
+        $stmtInfo->execute([':ref' => $externalReference]);
+        $res = $stmtInfo->fetch(\PDO::FETCH_ASSOC);
+
+        if ($res) {
+            $sqlVaga = "UPDATE schedules SET vacancies = vacancies - 1 WHERE id = :sid AND vacancies > 0";
+            $stmtVaga = $this->conn->prepare($sqlVaga);
+            return $stmtVaga->execute([':sid' => $res['schedule_id']]);
+        }
+    }
+    return false;
+}
+
+    public function getPaidPendingRegistrations($email) {
+        $sql = "SELECT t.payment_id, t.schedule_id, e.name as event_name, s.scheduled_at
+                FROM transactions t
+                JOIN schedules s ON t.schedule_id = s.id
+                JOIN events e ON s.event_id = e.id
+                WHERE t.payer_email = :email 
+                AND t.payment_status = 'approved'
+                AND s.scheduled_at >= NOW() -- TRAVA DE DATA/HORA
+                AND t.payment_id NOT IN (SELECT COALESCE(payment_id, '') FROM subscribers)
+                ORDER BY s.scheduled_at ASC";
+                    
         $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([
-            ':sid' => $scheduleId,
-            ':sid2' => $scheduleId,
-            ':status' => $status
-        ]);
+        $stmt->execute([':email' => $email]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function processWebhookNotification(string $paymentId): bool {
+        // 1. Busca dados da transação local
+        $sql = "SELECT schedule_id, payer_email, payment_status FROM transactions WHERE payment_id = :pid LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':pid' => $paymentId]);
+        $transaction = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$transaction || $transaction['payment_status'] === 'approved') {
+            return false;
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            // 2. Aprova a transação
+            $stmtUpdate = $this->conn->prepare("UPDATE transactions SET payment_status = 'approved', updated_at = NOW() WHERE payment_id = :pid");
+            $stmtUpdate->execute([':pid' => $paymentId]);
+
+            // 3. Abate a vaga
+            $stmtVaga = $this->conn->prepare("UPDATE schedules SET vacancies = vacancies - 1 WHERE id = :sid AND vacancies > 0");
+            $stmtVaga->execute([':sid' => $transaction['schedule_id']]);
+
+            if ($stmtVaga->rowCount() === 0) {
+                throw new Exception("Vagas esgotadas.");
+            }
+
+            $this->conn->commit();
+            return true;
+
+        } catch (Exception $e) {
+            if ($this->conn->inTransaction()) $this->conn->rollBack();
+            error_log("Erro no Webhook: " . $e->getMessage());
+            return false;
+        }
     }
 }

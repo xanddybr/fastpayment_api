@@ -1,2 +1,0 @@
-Webhook chamado em: 2026-03-26 03:54:31 - Método: POST
-Webhook chamado em: 2026-03-26 03:55:35 - Método: POST
