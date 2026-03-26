@@ -42,57 +42,82 @@ class Transaction extends BaseModel {
         return (bool)$stmt->fetch();
     }
 
+    public function createPendingTransaction($scheduleId, $email, $preferenceId, $amount) {
+    $sql = "INSERT INTO transactions (schedule_id, payer_email, payment_id, amount, payment_status, created_at) 
+            VALUES (:sid, :email, :pid, :amount, 'pending', NOW())";
+    
+    $stmt = $this->conn->prepare($sql);
+    return $stmt->execute([
+        ':sid' => $scheduleId,
+        ':email' => $email,
+        ':pid' => $preferenceId,
+        ':amount' => $amount
+    ]);
+}
+
     /**
      * Step 4: Master function to confirm payment and RESERVE vacancy
      */
    // Dentro do seu Transaction.php (Model)
 
 public function confirmPaymentAndReserveVacancy($externalReference, $status, $paymentId, $scheduleId, $payerEmail) {
-    try {
+
+    error_log("--- INICIO WEBHOOK DEBUG ---");
+    error_log("Procurando Payment ID: " . $paymentId);
+    error_log("Schedule ID enviado: " . $scheduleId);
+
+try {
         $this->conn->beginTransaction();
 
-        // 1. Verificamos se essa transação já foi registrada (evita duplicidade no Webhook)
-        $checkSql = "SELECT id FROM transactions WHERE payment_id = :pid LIMIT 1";
+        // 1. Buscamos a transação existente que criamos no checkout (Etapa Pending)
+        $checkSql = "SELECT id, payment_status FROM transactions WHERE payment_id = :pid LIMIT 1";
         $checkStmt = $this->conn->prepare($checkSql);
         $checkStmt->execute([':pid' => $paymentId]);
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($checkStmt->fetch()) {
+        // Se a transação não existe ou já foi aprovada, não fazemos nada
+        if (!$existing) {
+            error_log("WEBHOOK: Transação $paymentId não encontrada no banco.");
             $this->conn->rollBack();
-            return true; // Já processado, apenas ignoramos
+            return false; 
         }
 
-        // 2. Inserir o registro da transação
-        $sqlInsert = "INSERT INTO transactions (schedule_id, payer_email, payment_status, payment_id, amount, created_at, updated_at) 
-                      SELECT :sid, :email, :status, :pid, e.price, NOW(), NOW()
-                      FROM schedules s 
-                      JOIN events e ON s.event_id = e.id 
-                      WHERE s.id = :sid2";
+        if ($existing['payment_status'] === 'approved') {
+            error_log("WEBHOOK: Transação $paymentId já estava aprovada.");
+            $this->conn->rollBack();
+            return true; 
+        }
+
+        // 2. ATUALIZAMOS a transação existente para 'approved'
+        $sqlUpdateTrans = "UPDATE transactions 
+                           SET payment_status = :status, updated_at = NOW() 
+                           WHERE payment_id = :pid";
         
-        $stmtInsert = $this->conn->prepare($sqlInsert);
-        $stmtInsert->execute([
-            ':sid'    => $scheduleId,
-            ':sid2'   => $scheduleId,
-            ':email'  => $payerEmail,
+        $stmtUpdateTrans = $this->conn->prepare($sqlUpdateTrans);
+        $stmtUpdateTrans->execute([
             ':status' => $status,
             ':pid'    => $paymentId
         ]);
 
-        // 3. BAIXA DA VAGA (Só se aprovado)
+        // 3. BAIXA DA VAGA (Apenas se o status vindo for 'approved')
         if ($status === 'approved') {
-            $sqlUpdate = "UPDATE schedules 
-                          SET vacancies = vacancies - 1 
-                          WHERE id = :sid AND vacancies > 0";
+            // Conferindo nomes do seu schema: tabela 'schedules', coluna 'vacancies'
+            $sqlUpdateVaga = "UPDATE schedules 
+                              SET vacancies = vacancies - 1 
+                              WHERE id = :sid AND vacancies > 0";
             
-            $stmtUpdate = $this->conn->prepare($sqlUpdate);
-            $stmtUpdate->execute([':sid' => $scheduleId]);
+            $stmtUpdateVaga = $this->conn->prepare($sqlUpdateVaga);
+            $stmtUpdateVaga->execute([':sid' => $scheduleId]);
 
-            if ($stmtUpdate->rowCount() === 0) {
+            // Se rowCount for 0, ou o ID tá errado ou acabou a vaga
+            if ($stmtUpdateVaga->rowCount() === 0) {
+                error_log("ERRO: Não foi possível subtrair vaga para schedule $scheduleId");
                 throw new Exception("Falha ao baixar vaga: Curso esgotado ou ID inválido.");
             }
         }
 
         $this->conn->commit();
-        error_log("SUCESSO: Vaga baixada para o schedule $scheduleId");
+        error_log("SUCESSO: Status atualizado e vaga baixada para schedule $scheduleId");
         return true;
 
     } catch (Exception $e) {

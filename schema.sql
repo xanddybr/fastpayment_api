@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Mar 09, 2026 at 11:42 PM
+-- Generation Time: Mar 26, 2026 at 12:58 AM
 -- Server version: 8.0.42-0ubuntu0.24.04.1
--- PHP Version: 8.4.17
+-- PHP Version: 8.5.3
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -42,18 +42,6 @@ CREATE TABLE `anamnesis` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Dumping data for table `anamnesis`
---
-
-INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `expectations`, `who_recomend`, `is_medium`, `religion`, `religion_mention`, `is_tule_member`, `obs_motived`, `first_time`, `created_at`) VALUES
-(1, 1, 'gosto deste curso', 'conseguir melhorar como pessoa', 'uma amiga do tule', 1, 1, 'TESE tenda espirita santo expedito', 0, 'preciso crescer espiritualmente', 1, '2026-02-13 03:46:40'),
-(2, 2, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-13 16:28:36'),
-(3, 3, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-13 16:35:58'),
-(4, 5, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-13 16:51:11'),
-(6, 8, NULL, NULL, NULL, 0, 0, NULL, 0, NULL, 1, '2026-02-19 01:32:11'),
-(7, 10, 'Busca espiritual', 'Aprender Reiki', 'Amigo', 1, 1, 'Espiritismo', 0, NULL, 1, '2026-03-06 05:56:34');
-
 -- --------------------------------------------------------
 
 --
@@ -63,6 +51,7 @@ INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `expectations`,
 CREATE TABLE `events` (
   `id` int UNSIGNED NOT NULL,
   `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `price` decimal(10,2) DEFAULT NULL,
   `slug` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -71,10 +60,11 @@ CREATE TABLE `events` (
 -- Dumping data for table `events`
 --
 
-INSERT INTO `events` (`id`, `name`, `price`, `slug`) VALUES
-(2, 'Tarot Basico', 0.83, 'yoga'),
-(6, 'Jogo de Buzios', 0.15, 'jogo-de-buzios'),
-(8, 'Riki Nivel 1', 0.89, 'riki-2');
+INSERT INTO `events` (`id`, `name`, `description`, `price`, `slug`) VALUES
+(12, 'Reiki Nivel 2', '', 1.00, 'reiki-nivel-2'),
+(14, 'Reiki Nivel 3', NULL, 25.00, 'reiki-nivel-3'),
+(15, 'Reiki Nivel 1', NULL, 50.00, 'reiki-nivel-1'),
+(17, 'Pacote teste1', NULL, 0.10, 'pacote-teste1');
 
 -- --------------------------------------------------------
 
@@ -91,18 +81,6 @@ CREATE TABLE `events_subscribed` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Dumping data for table `events_subscribed`
---
-
-INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`, `status`, `created_at`) VALUES
-(1, 2, 10, 123451789, 'confirmed', '2026-02-13 03:46:40'),
-(2, 8, 18, 123456789, 'confirmed', '2026-02-13 16:28:36'),
-(3, 8, 18, 999888777, 'confirmed', '2026-02-13 16:35:58'),
-(5, 1, 18, 999888771, 'confirmed', '2026-02-13 16:51:11'),
-(8, 7, 18, 999888772, 'confirmed', '2026-02-19 01:32:11'),
-(10, 10, 10, NULL, 'paid', '2026-03-06 05:56:34');
-
 -- --------------------------------------------------------
 
 --
@@ -112,6 +90,7 @@ INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`,
 CREATE TABLE `event_types` (
   `id` int UNSIGNED NOT NULL,
   `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `slug` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -119,10 +98,10 @@ CREATE TABLE `event_types` (
 -- Dumping data for table `event_types`
 --
 
-INSERT INTO `event_types` (`id`, `name`, `slug`) VALUES
-(1, 'Curso', 'curso'),
-(6, 'Presencial', 'presencial'),
-(9, 'Palestra', 'palestra');
+INSERT INTO `event_types` (`id`, `name`, `description`, `slug`) VALUES
+(1, 'Curso', '', 'curso'),
+(10, 'Atendimento', '', 'atendimento'),
+(11, 'Consulta', NULL, 'consulta');
 
 -- --------------------------------------------------------
 
@@ -137,13 +116,6 @@ CREATE TABLE `history_logs` (
   `details` text COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `history_logs`
---
-
-INSERT INTO `history_logs` (`id`, `transaction_id`, `action`, `details`, `created_at`) VALUES
-(1, 1, 'Pagamento Confirmado', 'O sistema recebeu a confirmação do Mercado Pago.', '2026-01-29 13:19:25');
 
 -- --------------------------------------------------------
 
@@ -160,13 +132,6 @@ CREATE TABLE `payments` (
   `approved_at` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `payments`
---
-
-INSERT INTO `payments` (`id`, `amount`, `status`, `payer_email`, `external_reference`, `approved_at`, `created_at`) VALUES
-(1234567890, 250.00, 'approved', 'cliente@teste.com', 'REG-001', '2026-01-29 13:19:25', '2026-01-29 13:19:25');
 
 -- --------------------------------------------------------
 
@@ -189,11 +154,8 @@ CREATE TABLE `persons` (
 --
 
 INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_person_id`, `created_at`) VALUES
-(1, 'Administrador do Sistema', 'admin@gmail.com', '$2y$12$PkenEiMEvSS4NNy8ed.F3OlBF11j4zxtGT.sy9.D1o5tlRQ9S5GyK', 'active', 1, '2026-01-29 13:19:25'),
-(2, 'Aline Santana', 'aline@gmail.com', '$2y$12$isEBehAToycdZfLmX3iGN.UAtq/tnjwxCbM47dh0x9j8.It0wH4kq', 'active', 2, '2026-01-29 13:19:25'),
-(7, 'Natalia', 'nat2026@gmail.com', '$2y$12$9oWeujvEDDZq9IOVoG3mX.2DuJKYZWo8zVB0LNcyyKXWPr6//Cia.', 'active', 1, '2026-02-12 19:47:09'),
 (8, 'Alexandre', 'xanddybr@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54'),
-(10, 'Cliente X', 'cliente@teste.com', NULL, 'active', 2, '2026-03-06 05:56:34');
+(22, 'Michelle', 'chella.martinho@gmail.com', '$2y$12$Tr8p/91T/YJ/Jn2Koa48Fu8dsvcqkb4fU76Qx2V7KzOlHZQKNiQXu', 'active', NULL, '2026-03-19 06:08:11');
 
 -- --------------------------------------------------------
 
@@ -211,15 +173,6 @@ CREATE TABLE `person_details` (
   `neighborhood` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `person_details`
---
-
-INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone`, `street`, `number`, `neighborhood`, `city`) VALUES
-(6, 7, 'Dev', '2193945728', NULL, NULL, NULL, 'RJ'),
-(7, 8, NULL, NULL, NULL, NULL, NULL, NULL),
-(9, 10, 'Desenvolvedor', '11999999999', NULL, NULL, 'Centro', 'São Paulo');
 
 -- --------------------------------------------------------
 
@@ -257,6 +210,30 @@ CREATE TABLE `registered_codes` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `registered_codes`
+--
+
+INSERT INTO `registered_codes` (`id`, `email`, `code`, `expires_at`, `status`, `created_at`) VALUES
+(6, 'xanddybr@gmail.com', '782486', '2026-03-13 04:01:36', 'validado', '2026-03-13 03:56:36'),
+(7, 'xanddybr@gmail.com', '859894', '2026-03-19 00:47:43', 'expirado', '2026-03-19 00:42:43'),
+(8, 'xanddybr@gmail.com', '364795', '2026-03-19 02:35:50', 'validado', '2026-03-19 02:30:50'),
+(9, 'xanddybr@gmail.com', '797469', '2026-03-19 02:43:12', 'validado', '2026-03-19 02:38:12'),
+(10, 'xanddybr@gmail.com', '441317', '2026-03-19 02:55:44', 'validado', '2026-03-19 02:50:44'),
+(11, 'xanddybr@gmail.com', '513258', '2026-03-19 03:53:44', 'validado', '2026-03-19 03:48:44'),
+(12, 'xanddybr@gmail.com', '424254', '2026-03-19 04:00:45', 'validado', '2026-03-19 03:55:45'),
+(13, 'xanddybr@gmail.com', '964731', '2026-03-19 04:19:37', 'validado', '2026-03-19 04:14:37'),
+(14, 'xanddybr@gmail.com', '656717', '2026-03-19 22:37:22', 'validado', '2026-03-19 22:32:22'),
+(15, 'xanddybr@gmail.com', '021229', '2026-03-19 22:40:36', 'validado', '2026-03-19 22:35:36'),
+(16, 'xanddybr@gmail.com', '034580', '2026-03-19 22:43:12', 'validado', '2026-03-19 22:38:12'),
+(17, 'xanddybr@gmail.com', '905818', '2026-03-19 22:47:40', 'validado', '2026-03-19 22:42:40'),
+(18, 'xanddybr@gmail.com', '767936', '2026-03-19 23:21:26', 'validado', '2026-03-19 23:16:26'),
+(19, 'xanddybr@gmail.com', '426762', '2026-03-19 23:25:19', 'validado', '2026-03-19 23:20:19'),
+(20, 'xanddybr@gmail.com', '114271', '2026-03-19 23:27:46', 'validado', '2026-03-19 23:22:46'),
+(21, 'xanddybr@gmail.com', '320693', '2026-03-21 00:34:44', 'validado', '2026-03-21 00:29:44'),
+(22, 'xanddybr@gmail.com', '225018', '2026-03-21 00:46:38', 'validado', '2026-03-21 00:41:38'),
+(23, 'xanddybr@gmail.com', '035417', '2026-03-24 06:43:31', 'pendente', '2026-03-24 06:38:31');
+
 -- --------------------------------------------------------
 
 --
@@ -270,6 +247,7 @@ CREATE TABLE `schedules` (
   `unit_id` int UNSIGNED DEFAULT NULL,
   `vacancies` int DEFAULT '0',
   `scheduled_at` datetime DEFAULT NULL,
+  `duration_minutes` int DEFAULT NULL,
   `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'available',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -278,10 +256,10 @@ CREATE TABLE `schedules` (
 -- Dumping data for table `schedules`
 --
 
-INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `status`, `created_at`) VALUES
-(10, 2, 1, 6, 9, '2026-03-30 22:00:00', 'available', '2026-02-28 04:25:01'),
-(15, 6, 6, 8, 37, '2026-03-30 13:27:00', 'available', '2026-02-28 13:15:13'),
-(18, 8, 1, 9, 4, '2026-03-30 22:43:00', 'available', '2026-02-28 16:03:23');
+INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `duration_minutes`, `status`, `created_at`) VALUES
+(27, 15, 1, 17, 10, '2026-03-30 23:00:00', 60, 'available', '2026-03-18 02:21:54'),
+(30, 14, 1, 17, 5, '2026-03-30 21:22:00', 60, 'available', '2026-03-21 00:22:23'),
+(31, 17, 1, 17, 5, '2026-03-30 21:40:00', 60, 'available', '2026-03-21 00:41:00');
 
 -- --------------------------------------------------------
 
@@ -293,6 +271,7 @@ CREATE TABLE `transactions` (
   `id` int UNSIGNED NOT NULL,
   `schedule_id` int UNSIGNED DEFAULT NULL,
   `person_id` int UNSIGNED DEFAULT NULL,
+  `payment_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `payer_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `payment_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
   `amount` decimal(10,2) DEFAULT NULL,
@@ -304,12 +283,8 @@ CREATE TABLE `transactions` (
 -- Dumping data for table `transactions`
 --
 
-INSERT INTO `transactions` (`id`, `schedule_id`, `person_id`, `payer_email`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
-(2, 18, 8, NULL, 'approved', 0.00, '2026-02-13 16:28:36', '2026-02-13 16:28:36'),
-(3, 18, 8, NULL, 'approved', 0.00, '2026-02-13 16:35:58', '2026-02-13 16:35:58'),
-(5, 18, 1, NULL, 'approved', 2.00, '2026-02-13 16:51:11', '2026-02-13 16:51:11'),
-(8, 18, 7, NULL, 'approved', 0.89, '2026-02-19 01:32:11', '2026-02-19 01:32:11'),
-(9, 10, 10, 'comprador@email.com', 'approved', 150.00, '2026-03-06 06:07:41', '2026-03-06 06:07:41');
+INSERT INTO `transactions` (`id`, `schedule_id`, `person_id`, `payment_id`, `payer_email`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
+(12, 27, NULL, '3281120951-e6d5e69f-c9eb-4561-b2ec-6d6ecf3e597a', 'teste_user_2904943887590020914@testeuser.com', 'pending', 50.00, '2026-03-25 10:05:21', '2026-03-25 10:05:21');
 
 -- --------------------------------------------------------
 
@@ -348,9 +323,8 @@ CREATE TABLE `units` (
 --
 
 INSERT INTO `units` (`id`, `name`, `slug`) VALUES
-(6, 'Barra', 'barra'),
-(8, 'Pechincha', 'pechincha'),
-(9, 'On-line', 'on-line');
+(17, 'CURICICA', 'curicica'),
+(18, 'ON-LINE', 'on-line');
 
 --
 -- Indexes for dumped tables
@@ -459,25 +433,25 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `anamnesis`
 --
 ALTER TABLE `anamnesis`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `events`
 --
 ALTER TABLE `events`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `event_types`
 --
 ALTER TABLE `event_types`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `history_logs`
@@ -489,31 +463,31 @@ ALTER TABLE `history_logs`
 -- AUTO_INCREMENT for table `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `person_details`
 --
 ALTER TABLE `person_details`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `registered_codes`
 --
 ALTER TABLE `registered_codes`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `types_person`
@@ -525,7 +499,7 @@ ALTER TABLE `types_person`
 -- AUTO_INCREMENT for table `units`
 --
 ALTER TABLE `units`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- Constraints for dumped tables

@@ -84,13 +84,13 @@
     $app->post('/api/auth/generate-code', \App\Controllers\AuthController::class . ':generateValidationCode');
     $app->post('/api/auth/validate-code', \App\Controllers\AuthController::class . ':validateCode');
 
-    $app->post('/api/checkout/pay', \App\Controllers\TransactionController::class . ':createPayment');
+    $app->post('/api/checkout', \App\Controllers\TransactionController::class . ':createPayment');
     $app->get('/api/checkout/check-status', \App\Controllers\TransactionController::class . ':checkStatus');
     $app->get('/api/cron/schedules-cleanup', \App\Controllers\ScheduleController::class . ':closeExpiredSchedules');
     $app->post('/api/public/register', \App\Controllers\RegistrationController::class . ':create');
 
     $app->post('/api/check-payment', \App\Controllers\TransactionController::class . ':checkPayment');
-    $app->post('/api/webhook/mercadopago', \App\Controllers\PaymentController::class . ':webhook');
+    $app->post('/api/webhook/mercadopago', \App\Controllers\TransactionController::class . ':webhook');
 
 
     // -----------------------------------------------------------------------------

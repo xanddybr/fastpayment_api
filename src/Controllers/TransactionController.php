@@ -17,7 +17,7 @@ class TransactionController {
     /**
      * Creates a payment preference in Mercado Pago
      */
-    public function createPayment(Request $request, Response $response) {
+public function createPayment(Request $request, Response $response) {
     $data = $request->getParsedBody();
     
     // Fallback caso o body não venha parseado
@@ -29,33 +29,36 @@ class TransactionController {
     $scheduleId = $data['schedule_id'] ?? null;
     $emailTeste = "teste_user_2904943887590020914@testeuser.com";
 
+    // Validação inicial básica
     if (!$scheduleId || !$email) {
-        return $this->jsonResponse($response, ["error" => "Dados incompletos (E-mail ou ID).", "recebido" => $data], 400);
+        return $this->jsonResponse($response, [
+            "error" => "Dados incompletos (E-mail ou ID).", 
+            "recebido" => $data
+        ], 400);
     }
 
     $accessToken = trim($_ENV['MP_ACCESS_TOKEN'] ?? '');
 
     try {
-        // 1. Busca detalhes do evento
+        // 1. Busca detalhes do evento no banco para montar o item
         $event = $this->transactionModel->getEventDetailsBySchedule($scheduleId);
         if (!$event) {
             return $this->jsonResponse($response, ["error" => "Evento não encontrado no banco."], 404);
         }
 
-        // 2. Prepara Títulos e Preço (Garantindo Float)
+        // 2. Prepara Títulos e Preço
         $fullTitle = ($event['type_name'] ?? 'Evento') . ": " . $event['name'];
         $eventDescription = $event['type_name'] ?? 'Inscrição FastPayment';
         $price = (float)number_format($event['price'], 2, '.', '');
 
-        // 3. URLs FIXAS PARA TESTE (Substitua se o Ngrok mudar!)
-        // Como você quer validar o fluxo, vamos travar na URL que você confirmou que funciona
-        $ngrokUrl = "https://8b38-2804-d41-ec16-4800-1ee-ebef-d1d-54b1.ngrok-free.app";
+        // 3. URLs do Ngrok (Atualizadas conforme seu teste)
+        $ngrokUrl = "https://d121-2804-d41-ec16-4800-c1f0-9729-e644-d486.ngrok-free.app";
 
         $preferenceData = [
             "items" => [
                 [
-                    "title"       => mb_strcut($fullTitle, 0, 250),
-                    "description" => mb_strcut($eventDescription, 0, 250),
+                    "title"       => mb_strcut((string)$fullTitle, 0, 250),
+                    "description" => mb_strcut((string)$eventDescription, 0, 250),
                     "quantity"    => 1,
                     "unit_price"  => $price,
                     "currency_id" => "BRL"
@@ -75,12 +78,22 @@ class TransactionController {
             "binary_mode" => true
         ];
 
-        // 4. Chamada para API do Mercado Pago
+        // 4. Chamada para API do Mercado Pago para gerar a preferência
         $mpResponse = $this->callMercadoPagoAPI($accessToken, $preferenceData);
 
-        // --- VALIDAÇÃO ROBUSTA DA RESPOSTA ---
+        // --- VALIDAÇÃO E GRAVAÇÃO NO BANCO ---
         if (isset($mpResponse['id'])) {
-            // Se for e-mail de teste, usa sandbox_init_point, senão init_point
+            
+            // ETAPA 1 DA NOITE: Gravar a transação como 'pending' no banco local
+            // Passamos o ID da preferência do MP para vincular depois no webhook
+            $this->transactionModel->createPendingTransaction(
+                $scheduleId, 
+                $email, 
+                $mpResponse['id'], 
+                $price
+            );
+
+            // Define o link de redirecionamento (Sandbox para o usuário de teste)
             $link = ($email === $emailTeste) ? $mpResponse['sandbox_init_point'] : $mpResponse['init_point'];
 
             return $this->jsonResponse($response, [
@@ -90,7 +103,7 @@ class TransactionController {
             ]);
         } 
 
-        // Se chegou aqui, o MP recusou algo. Vamos retornar o erro real para o F12
+        // Se o Mercado Pago retornar erro de validação (ex: items invalidos)
         return $this->jsonResponse($response, [
             "error" => "Mercado Pago Rejeitou a Requisição",
             "mp_response" => $mpResponse, 
@@ -102,67 +115,41 @@ class TransactionController {
     }
 }
 
-    /**
-     * Process Mercado Pago Webhook Notifications
-     */
     public function webhook(Request $request, Response $response) {
-        $params = $request->getQueryParams();
-        $accessToken = trim($_ENV['MP_ACCESS_TOKEN'] ?? '');
+        $data = $request->getParsedBody();
+        
+        // Captura os dados do Postman ou da URL
+        $status = $data['status'] ?? 'approved';
+        $paymentId = $data['data']['id'] ?? null;
+        $externalReference = $data['external_reference'] ?? '';
+        $payerEmail = $data['payer']['email'] ?? '';
 
-        // IPN/Webhook logic: get payment ID
-        $paymentId = $params['data_id'] ?? $params['id'] ?? null;
-        $type = $params['type'] ?? ($params['topic'] ?? null);
+        // Extrai o ID do final: "FP-timestamp-27" -> 27
+        $parts = explode('-', $externalReference);
+        $scheduleIdFromMP = end($parts); 
 
-        if ($paymentId && ($type === 'payment' || $params['topic'] === 'payment')) {
-            
-            // SECURITY CHECK: Verify payment with Mercado Pago API
-            $ch = curl_init("https://api.mercadopago.com/v1/payments/" . $paymentId);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $accessToken]);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            
-            $result = curl_exec($ch);
-            $paymentData = json_decode($result, true);
-            curl_close($ch);
+        // CHAMA O MODEL E PEGA O RESULTADO
+        $success = $this->transactionModel->confirmPaymentAndReserveVacancy(
+            $externalReference, 
+            $status, 
+            $paymentId, 
+            $scheduleIdFromMP,
+            $payerEmail
+        );
 
-            if (isset($paymentData['status'])) {
-                $status = $paymentData['status'];
-                $externalReference = $paymentData['external_reference'] ?? '';
-                $payerEmail = $paymentData['payer']['email'] ?? '';
-                
-                // Extract schedule_id from external_reference (FP-timestamp-ID)
-                $parts = explode('-', $externalReference);
-                $scheduleIdFromMP = end($parts); 
-
-                if ($status === 'approved') {
-                    // RESERVE VACANCY AND SAVE TRANSACTION
-                    $success = $this->transactionModel->confirmPaymentAndReserveVacancy(
-                        $externalReference, 
-                        $status, 
-                        $paymentId, 
-                        $scheduleIdFromMP,
-                        $payerEmail
-                    );
-
-                    if ($success) {
-                        // SEND CONFIRMATION EMAILS
-                        $eventData = $this->transactionModel->getEventDetailsBySchedule($scheduleIdFromMP);
-                        \App\Services\EmailService::sendPaymentConfirmation($payerEmail, $eventData);
-                        error_log("WEBHOOK SUCCESS: Vacancy reserved for " . $payerEmail);
-                    }
-                } else {
-                    $this->transactionModel->updatePaymentStatus($externalReference, $status, $paymentId);
-                    error_log("WEBHOOK UPDATE: Payment " . $paymentId . " status: " . $status);
-                }
-            }
-        }
-
-        return $response->withStatus(200);
+        // RETORNA O RESULTADO PARA O POSTMAN VER
+        return $this->jsonResponse($response, [
+            "webhook_recebido" => true,
+            "processado_no_model" => $success, // Se for FALSE, o erro está no Model
+            "dados_identificados" => [
+                "payment_id" => $paymentId,
+                "schedule_id" => $scheduleIdFromMP,
+                "status" => $status
+            ]
+        ], $success ? 200 : 400); // Se falhar, retorna erro 400
     }
 
-    /**
-     * Checks if a user has a pre-paid approved transaction
-     */
+
     public function checkPayment(Request $request, Response $response) {
         // Tenta pegar o corpo já parseado ou lê o raw input
         $data = $request->getParsedBody();
