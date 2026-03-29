@@ -19,6 +19,39 @@ $app->setBasePath('');
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 
+// --- DEFINIÇÃO DO MIDDLEWARE DE SESSÃO (Adicione isso aqui) ---
+$adminMiddleware = function ($request, $handler) {
+    // Inicia a sessão se ainda não estiver aberta
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    // Verifica se o analista está logado
+    if (!isset($_SESSION['user_id'])) {
+        $response = new \Slim\Psr7\Response();
+        $payload = json_encode(['error' => 'Sessão expirada. Faça login novamente.']);
+        $response->getBody()->write($payload);
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus(401);
+    }
+
+    // Se estiver logado, segue para o Controller
+    return $handler->handle($request);
+};
+
+// No index.php (API)
+$app->get('/agenda', function ($request, $response) {
+    // Pega todos os parâmetros que o MP mandou (?status=approved...)
+    $params = $request->getQueryParams();
+    $queryString = http_build_query($params);
+    
+    // Manda de volta para o seu Vite local
+    return $response
+        ->withHeader('Location', 'http://localhost:5173/agenda/?' . $queryString)
+        ->withStatus(302);
+});
+
 // A rota precisa ser IGUAL ao que você configurou no Mercado Pago
 $app->map(['POST', 'OPTIONS'], '/api/webhook/mercadopago', function ($request, $response) {
     if ($request->getMethod() === 'OPTIONS') {
@@ -28,7 +61,6 @@ $app->map(['POST', 'OPTIONS'], '/api/webhook/mercadopago', function ($request, $
     return $controller->webhook($request, $response);
 });
 // --- 4. ROTAS PÚBLICAS ---
-// -----------------------------------------------------------------------------
 
 $app->post('/login', \App\Controllers\AuthController::class . ':login');
 
@@ -52,7 +84,6 @@ $app->post('/api/check-payment', \App\Controllers\TransactionController::class .
 $app->post('/api/register/subscribers', \App\Controllers\RegistrationController::class . ':create');
 
 // --- 5. ROTAS ADMINISTRATIVAS (PROTEGIDAS) ---
-// -----------------------------------------------------------------------------
 
 // Defina seu $adminMiddleware aqui ou certifique-se que ele está acessível
 $app->group('', function ($group) {
