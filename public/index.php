@@ -140,10 +140,9 @@ $app->addErrorMiddleware(true, true, true);
 
 $app->add(function (Request $request, $handler) {
     $response = $handler->handle($request);
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
 
     return $response
-        ->withHeader('Access-Control-Allow-Origin', $origin)
+        ->withHeader('Access-Control-Allow-Origin', 'https://beta.misturadeluz.com')
         ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT')
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
         ->withHeader('Access-Control-Allow-Credentials', 'true');
