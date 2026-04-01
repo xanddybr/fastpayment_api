@@ -142,7 +142,7 @@ $app->add(function (Request $request, $handler) {
     $response = $handler->handle($request);
 
     return $response
-        ->withHeader('Access-Control-Allow-Origin', 'https://beta.misturadeluz.com')
+        ->withHeader('Access-Control-Allow-Origin', '*')
         ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT')
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
         ->withHeader('Access-Control-Allow-Credentials', 'true');
