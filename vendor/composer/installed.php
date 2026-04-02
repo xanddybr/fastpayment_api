@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => 'dev-main',
-        'version' => 'dev-main',
-        'reference' => '6605b7c43fdc648b1d8a732c355f93821d1d9575',
+        'pretty_version' => 'dev-develop',
+        'version' => 'dev-develop',
+        'reference' => '9e5c9385d325795707b8b2dd589f43b9825ac8ad',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => '6605b7c43fdc648b1d8a732c355f93821d1d9575',
+            'pretty_version' => 'dev-develop',
+            'version' => 'dev-develop',
+            'reference' => '9e5c9385d325795707b8b2dd589f43b9825ac8ad',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -92,9 +92,9 @@
             'dev_requirement' => false,
         ),
         'giggsey/libphonenumber-for-php' => array(
-            'pretty_version' => '9.0.26',
-            'version' => '9.0.26.0',
-            'reference' => '53c2c418d3de20018662158a0c441fbaacc21da6',
+            'pretty_version' => '9.0.27',
+            'version' => '9.0.27.0',
+            'reference' => '7973753b3efe38fb57dc949a6014a4d1cfce0ffd',
             'type' => 'library',
             'install_path' => __DIR__ . '/../giggsey/libphonenumber-for-php',
             'aliases' => array(),
@@ -103,7 +103,7 @@
         'giggsey/libphonenumber-for-php-lite' => array(
             'dev_requirement' => false,
             'replaced' => array(
-                0 => '9.0.26',
+                0 => '9.0.27',
             ),
         ),
         'giggsey/locale' => array(
@@ -342,18 +342,18 @@
             'dev_requirement' => false,
         ),
         'symfony/config' => array(
-            'pretty_version' => 'v8.0.7',
-            'version' => '8.0.7.0',
-            'reference' => '9a34c52187112503d02903ab35e6e3783f580c29',
+            'pretty_version' => 'v8.0.8',
+            'version' => '8.0.8.0',
+            'reference' => 'c7369cc1da250fcbfe0c5a9d109e419661549c39',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/config',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
         'symfony/console' => array(
-            'pretty_version' => 'v8.0.7',
-            'version' => '8.0.7.0',
-            'reference' => '15ed9008a4ebe2d6a78e4937f74e0c13ef2e618a',
+            'pretty_version' => 'v8.0.8',
+            'version' => '8.0.8.0',
+            'reference' => '5b66d385dc58f69652e56f78a4184615e3f2b7f7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/console',
             'aliases' => array(),
@@ -369,9 +369,9 @@
             'dev_requirement' => false,
         ),
         'symfony/filesystem' => array(
-            'pretty_version' => 'v8.0.6',
-            'version' => '8.0.6.0',
-            'reference' => '7bf9162d7a0dff98d079b72948508fa48018a770',
+            'pretty_version' => 'v8.0.8',
+            'version' => '8.0.8.0',
+            'reference' => '66b769ae743ce2d13e435528fbef4af03d623e5a',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/filesystem',
             'aliases' => array(),
@@ -441,9 +441,9 @@
             'dev_requirement' => false,
         ),
         'symfony/string' => array(
-            'pretty_version' => 'v8.0.6',
-            'version' => '8.0.6.0',
-            'reference' => '6c9e1108041b5dce21a9a4984b531c4923aa9ec4',
+            'pretty_version' => 'v8.0.8',
+            'version' => '8.0.8.0',
+            'reference' => 'ae9488f874d7603f9d2dfbf120203882b645d963',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/string',
             'aliases' => array(),
