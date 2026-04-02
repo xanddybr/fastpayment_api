@@ -140,13 +140,18 @@ $app->addErrorMiddleware(true, true, true);
 
 $app->add(function (Request $request, $handler) {
     $response = $handler->handle($request);
+    
+    // Identifica de onde vem a requisição
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
 
     return $response
-        ->withHeader('Access-Control-Allow-Origin', '*')
+        ->withHeader('Access-Control-Allow-Origin', $origin) // Permite dinamicamente
         ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT')
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
         ->withHeader('Access-Control-Allow-Credentials', 'true');
 });
+
+// Responde imediatamente aos pre-flights do navegador
 
 // --- 7. RUN ---
 $app->run();
