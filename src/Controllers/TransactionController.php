@@ -24,7 +24,7 @@ class TransactionController {
         $scheduleId = $data['schedule_id'] ?? null;
         $personId = $_SESSION['user_id'] ?? null; // Pega da sessão se existir
 
-        $urlFront = "https://536b-2804-d41-ec16-4800-b3ef-38f2-330b-ed69.ngrok-free.app/agenda";
+        $urlFront = "https://beta.misturadeluz.com/beta";
 
         // Referência única: FP + Timestamp + ID da Vaga
         $externalRef = "FP-" . time() . "-" . $scheduleId;
@@ -45,7 +45,7 @@ class TransactionController {
                 ]],
                 "payer" => ["email" => $email],
                 "external_reference" => $externalRef,
-                "notification_url" => "https://536b-2804-d41-ec16-4800-b3ef-38f2-330b-ed69.ngrok-free.app/api/webhook/mercadopago",
+                "notification_url" => "https://beta.misturadeluz.com/api/webhook/mercadopago",
                 "auto_return" => "approved",
                 "back_urls" => [
                     "success" => $urlFront

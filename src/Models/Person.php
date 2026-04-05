@@ -95,8 +95,8 @@ class Person extends BaseModel {
 
             // 5. Tabela `anamnesis` (Ficha Técnica)
             $sqlAnamnesis = "INSERT INTO anamnesis 
-                (subscribed_id, course_reason, expectations, is_medium, religion, religion_mention, is_tule_member, obs_motived, first_time) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                (subscribed_id, course_reason, expectations, who_recomend, is_medium, religion, religion_mention, is_tule_member, obs_motived, first_time) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmtAna = $this->conn->prepare($sqlAnamnesis);
             
             // Tratamento de conversão para TinyInt (0 ou 1)
@@ -253,29 +253,38 @@ public function createValidationCode($email, $phone = null) {
 
     public function getAllSubscribers() {
         $sql = "SELECT 
-            p.id as person_id, p.full_name, p.email,
-            pd.phone, pd.activity_professional, pd.neighborhood, pd.city,
-            es.id as subscribed_id, es.status as subscription_status, es.created_at as data_inscricao,
-            t.payer_email, t.amount as valor_pago, t.payment_status,
-            -- Dados do Schedule/Evento (Para resolver o UNDEFINED)
-            e.name as event_name, 
-            et.name as type_name,
-            u.name as unit_name,
-            s.scheduled_at,
-            -- Dados da Anamnese
-            a.course_reason, a.expectations, a.who_recomend, a.is_medium, 
-            a.religion, a.religion_mention, a.is_tule_member, a.obs_motived, a.first_time
-        FROM persons p
-        INNER JOIN person_details pd ON p.id = pd.person_id
-        INNER JOIN events_subscribed es ON p.id = es.person_id
-        INNER JOIN schedules s ON es.schedule_id = s.id
-        INNER JOIN events e ON s.event_id = e.id
-        INNER JOIN event_types et ON s.event_type_id = et.id
-        INNER JOIN units u ON s.unit_id = u.id
-        LEFT JOIN transactions t ON (p.id = t.person_id AND es.schedule_id = t.schedule_id)
-        LEFT JOIN anamnesis a ON es.id = a.subscribed_id
-        WHERE p.type_person_id = 2 
-        ORDER BY es.created_at DESC;";
+    p.id AS person_id,
+    p.full_name,
+    p.email,
+    pd.phone,
+    pd.activity_professional,
+    pd.neighborhood,
+    pd.city,
+    es.id AS subscribed_id,
+    es.status AS enrollment_status,
+    es.created_at AS data_inscricao,
+    s.scheduled_at,
+    e.name AS event_name,
+    et.name AS type_name,
+    u.name AS unit_name,
+    e.price AS valor_evento,
+    t.payment_status,
+    t.payer_email,
+    a.course_reason,
+    a.obs_motived,
+    a.who_recomend,
+    a.expectations
+FROM persons p
+INNER JOIN person_details pd ON p.id = pd.person_id
+INNER JOIN events_subscribed es ON p.id = es.person_id
+INNER JOIN schedules s ON es.schedule_id = s.id
+INNER JOIN events e ON s.event_id = e.id
+INNER JOIN event_types et ON s.event_type_id = et.id
+INNER JOIN units u ON s.unit_id = u.id
+LEFT JOIN anamnesis a ON es.id = a.subscribed_id
+-- Vinculo pelo horário e pelo e-mail cadastrado do aluno
+LEFT JOIN transactions t ON (s.id = t.schedule_id)
+ORDER BY es.created_at DESC;";
 
         // IMPORTANTE: Usando $this->conn que vem do seu BaseModel Singleton
         $stmt = $this->conn->query($sql);

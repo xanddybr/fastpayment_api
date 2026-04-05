@@ -41,14 +41,14 @@ $adminMiddleware = function ($request, $handler) {
 };
 
 // No index.php (API)
-$app->get('/agenda', function ($request, $response) {
+$app->get('/beta', function ($request, $response) {
     // Pega todos os parâmetros que o MP mandou (?status=approved...)
     $params = $request->getQueryParams();
     $queryString = http_build_query($params);
     
     // Manda de volta para o seu Vite local
     return $response
-        ->withHeader('Location', 'http://localhost:5173/agenda/?' . $queryString)
+        ->withHeader('Location', 'http://localhost:4173/beta/?' . $queryString)
         ->withStatus(302);
 });
 
