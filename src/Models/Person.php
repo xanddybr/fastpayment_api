@@ -268,8 +268,27 @@ public function createValidationCode($email, $phone = null) {
     et.name AS type_name,
     u.name AS unit_name,
     e.price AS valor_evento,
-    t.payment_status,
-    t.payer_email,
+    -- Busca o Status (com COLLATE para evitar erro #1267)
+    COALESCE(
+        (SELECT t.payment_status 
+         FROM transactions t 
+         WHERE t.schedule_id = s.id 
+         AND t.payment_id COLLATE utf8mb4_unicode_ci = es.payment_id COLLATE utf8mb4_unicode_ci 
+         ORDER BY (t.payment_status = 'approved') DESC, t.id DESC 
+         LIMIT 1), 
+    'pending') AS payment_status,
+    -- Busca o E-mail do Pagador (vinculado à mesma lógica)
+    (SELECT t.payer_email 
+     FROM transactions t 
+     WHERE t.schedule_id = s.id 
+     AND t.payment_id COLLATE utf8mb4_unicode_ci = es.payment_id COLLATE utf8mb4_unicode_ci 
+     ORDER BY (t.payment_status = 'approved') DESC, t.id DESC 
+     LIMIT 1) AS payer_email,
+    a.is_medium,
+    a.first_time,
+    a.is_tule_member,
+    a.religion,
+    a.religion_mention,
     a.course_reason,
     a.obs_motived,
     a.who_recomend,
@@ -282,8 +301,6 @@ INNER JOIN events e ON s.event_id = e.id
 INNER JOIN event_types et ON s.event_type_id = et.id
 INNER JOIN units u ON s.unit_id = u.id
 LEFT JOIN anamnesis a ON es.id = a.subscribed_id
--- Vinculo pelo horário e pelo e-mail cadastrado do aluno
-LEFT JOIN transactions t ON (s.id = t.schedule_id)
 ORDER BY es.created_at DESC;";
 
         // IMPORTANTE: Usando $this->conn que vem do seu BaseModel Singleton

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Mar 26, 2026 at 03:47 PM
+-- Generation Time: Apr 06, 2026 at 05:08 PM
 -- Server version: 8.0.42-0ubuntu0.24.04.1
 -- PHP Version: 8.5.3
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `u967889760_fastpayment`
+-- Database: `u967889760_fastbeta`
 --
 
 -- --------------------------------------------------------
@@ -47,8 +47,7 @@ CREATE TABLE `anamnesis` (
 --
 
 INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `expectations`, `who_recomend`, `is_medium`, `religion`, `religion_mention`, `is_tule_member`, `obs_motived`, `first_time`, `created_at`) VALUES
-(13, 19, 'Preciso creser', 'Inscrição via Formulário SPA', NULL, 1, 1, 'Universalista', 1, 'Amigo', 1, '2026-03-26 07:05:24'),
-(14, 20, 'Criei', 'Inscrição via Formulário SPA', NULL, 1, 1, 'Evangelico', 0, 'Nenhuma', 0, '2026-03-26 07:14:40');
+(16, 22, 'Um amigo espiritual', 'tenho a expectativa de ser um bom curso', 'Meu amigo que me indicou', 1, 1, 'Espirita', 1, 'Busca pela evolução', 1, '2026-04-05 06:45:57');
 
 -- --------------------------------------------------------
 
@@ -58,10 +57,10 @@ INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `expectations`,
 
 CREATE TABLE `events` (
   `id` int UNSIGNED NOT NULL,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `price` decimal(10,2) DEFAULT NULL,
-  `slug` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `slug` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -71,8 +70,7 @@ CREATE TABLE `events` (
 INSERT INTO `events` (`id`, `name`, `description`, `price`, `slug`) VALUES
 (12, 'Reiki Nivel 2', '', 1.00, 'reiki-nivel-2'),
 (14, 'Reiki Nivel 3', NULL, 25.00, 'reiki-nivel-3'),
-(15, 'Reiki Nivel 1', NULL, 50.00, 'reiki-nivel-1'),
-(17, 'Pacote teste1', NULL, 0.10, 'pacote-teste1');
+(15, 'Reiki Nivel 1', NULL, 50.00, 'reiki-nivel-1');
 
 -- --------------------------------------------------------
 
@@ -84,8 +82,8 @@ CREATE TABLE `events_subscribed` (
   `id` int UNSIGNED NOT NULL,
   `person_id` int UNSIGNED NOT NULL,
   `schedule_id` int UNSIGNED NOT NULL,
-  `payment_id` int UNSIGNED DEFAULT NULL,
-  `status` varchar(20) DEFAULT 'pending',
+  `payment_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -94,8 +92,8 @@ CREATE TABLE `events_subscribed` (
 --
 
 INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`, `status`, `created_at`) VALUES
-(19, 8, 27, NULL, 'confirmed', '2026-03-26 07:05:24'),
-(20, 24, 27, NULL, 'confirmed', '2026-03-26 07:14:40');
+(22, 26, 27, '152597214529', 'confirmed', '2026-04-05 06:45:57'),
+(25, 26, 27, '152597214530', 'pending', '2026-04-05 06:45:57');
 
 -- --------------------------------------------------------
 
@@ -105,9 +103,9 @@ INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`,
 
 CREATE TABLE `event_types` (
   `id` int UNSIGNED NOT NULL,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `slug` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `slug` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -128,8 +126,8 @@ INSERT INTO `event_types` (`id`, `name`, `description`, `slug`) VALUES
 CREATE TABLE `history_logs` (
   `id` int UNSIGNED NOT NULL,
   `transaction_id` int UNSIGNED DEFAULT NULL,
-  `action` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `details` text COLLATE utf8mb4_unicode_ci,
+  `action` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -142,9 +140,9 @@ CREATE TABLE `history_logs` (
 CREATE TABLE `payments` (
   `id` bigint UNSIGNED NOT NULL,
   `amount` decimal(10,2) DEFAULT NULL,
-  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `payer_email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `external_reference` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payer_email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `external_reference` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `approved_at` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -157,10 +155,10 @@ CREATE TABLE `payments` (
 
 CREATE TABLE `persons` (
   `id` int UNSIGNED NOT NULL,
-  `full_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `full_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'active',
   `type_person_id` int UNSIGNED DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -171,8 +169,8 @@ CREATE TABLE `persons` (
 
 INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_person_id`, `created_at`) VALUES
 (8, 'Alexandre souza', 'xanddybr@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54'),
-(22, 'Michelle', 'chella.martinho@gmail.com', '$2y$12$Tr8p/91T/YJ/Jn2Koa48Fu8dsvcqkb4fU76Qx2V7KzOlHZQKNiQXu', 'active', NULL, '2026-03-19 06:08:11'),
-(24, 'Marcelo', 'mar@gmail.com', NULL, 'active', 2, '2026-03-26 07:14:40');
+(25, 'Vitor Cesar', 'vitinho@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 2, '2026-04-05 04:09:29'),
+(26, 'TESTE 2026', 't2026@gmail.com', NULL, 'active', 2, '2026-04-05 06:45:57');
 
 -- --------------------------------------------------------
 
@@ -183,12 +181,12 @@ INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_p
 CREATE TABLE `person_details` (
   `id` int UNSIGNED NOT NULL,
   `person_id` int UNSIGNED DEFAULT NULL,
-  `activity_professional` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `street` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `activity_professional` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `street` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `number` int DEFAULT NULL,
-  `neighborhood` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `neighborhood` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -197,7 +195,8 @@ CREATE TABLE `person_details` (
 
 INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone`, `street`, `number`, `neighborhood`, `city`) VALUES
 (20, 8, 'Analista', '21986609260', NULL, NULL, 'Jacarépagua', 'Rio de Janeiro'),
-(21, 24, 'Marceneiro', '21988556898', NULL, NULL, 'Bangu', 'Rio');
+(22, 25, 'Jogador de futbol', '21988889999', NULL, NULL, 'Jacarepagua', 'Rio de janeiro'),
+(23, 26, 'Refrigerador', '21889898559', 'rua petropolis', 123, 'Bangu', 'Rio de Janeiro');
 
 -- --------------------------------------------------------
 
@@ -207,7 +206,7 @@ INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone
 
 CREATE TABLE `phinxlog` (
   `version` bigint NOT NULL,
-  `migration_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `migration_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `start_time` timestamp NULL DEFAULT NULL,
   `end_time` timestamp NULL DEFAULT NULL,
   `breakpoint` tinyint(1) NOT NULL DEFAULT '0'
@@ -228,10 +227,10 @@ INSERT INTO `phinxlog` (`version`, `migration_name`, `start_time`, `end_time`, `
 
 CREATE TABLE `registered_codes` (
   `id` int UNSIGNED NOT NULL,
-  `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `code` varchar(6) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `code` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `expires_at` datetime DEFAULT NULL,
-  `status` enum('pendente','validado','expirado') COLLATE utf8mb4_unicode_ci DEFAULT 'pendente',
+  `status` enum('pendente','validado','expirado') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pendente',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -256,7 +255,7 @@ CREATE TABLE `schedules` (
   `vacancies` int DEFAULT '0',
   `scheduled_at` datetime DEFAULT NULL,
   `duration_minutes` int DEFAULT NULL,
-  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'available',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'available',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -265,8 +264,7 @@ CREATE TABLE `schedules` (
 --
 
 INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `duration_minutes`, `status`, `created_at`) VALUES
-(27, 15, 1, 17, 5, '2026-03-30 23:00:00', 60, 'available', '2026-03-18 02:21:54'),
-(30, 14, 1, 17, 5, '2026-03-30 21:22:00', 60, 'available', '2026-03-21 00:22:23');
+(27, 15, 1, 17, 100, '2026-11-30 23:00:00', 60, 'available', '2026-03-18 02:21:54');
 
 -- --------------------------------------------------------
 
@@ -276,17 +274,25 @@ INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancie
 
 CREATE TABLE `transactions` (
   `id` int UNSIGNED NOT NULL,
-  `preference_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `external_reference` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `preference_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `external_reference` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `schedule_id` int UNSIGNED DEFAULT NULL,
   `person_id` int UNSIGNED DEFAULT NULL,
-  `payment_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `payer_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `payment_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `payment_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payer_email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
   `amount` decimal(10,2) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `transactions`
+--
+
+INSERT INTO `transactions` (`id`, `preference_id`, `external_reference`, `schedule_id`, `person_id`, `payment_id`, `payer_email`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
+(47, '3281120951-e950878a-7f7e-4c57-9692-c636b14c99a7', 'FP-1775371446-27', 27, 26, '152597214529', 'teste_user_2904943887590020914@testeuser.com', 'approved', 50.00, '2026-04-05 06:44:06', '2026-04-05 06:49:53'),
+(49, '3281120951-cd6227cd-4370-4426-8776-a8c1f9ac537e', 'FP-1775490543-27', 27, NULL, NULL, 'teste_user_2904943887590020914@testeuser.com', 'pendding', 50.00, '2026-04-06 15:49:03', '2026-04-06 16:00:23');
 
 -- --------------------------------------------------------
 
@@ -296,7 +302,7 @@ CREATE TABLE `transactions` (
 
 CREATE TABLE `types_person` (
   `id` int UNSIGNED NOT NULL,
-  `name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -316,8 +322,8 @@ INSERT INTO `types_person` (`id`, `name`, `created_at`) VALUES
 
 CREATE TABLE `units` (
   `id` int UNSIGNED NOT NULL,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `slug` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `slug` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -437,7 +443,7 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `anamnesis`
 --
 ALTER TABLE `anamnesis`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `events`
@@ -449,7 +455,7 @@ ALTER TABLE `events`
 -- AUTO_INCREMENT for table `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `event_types`
@@ -467,13 +473,13 @@ ALTER TABLE `history_logs`
 -- AUTO_INCREMENT for table `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `person_details`
 --
 ALTER TABLE `person_details`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `registered_codes`
@@ -491,7 +497,7 @@ ALTER TABLE `schedules`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT for table `types_person`
