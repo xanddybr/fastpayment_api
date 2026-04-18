@@ -106,6 +106,7 @@ class Person extends BaseModel {
                 $subscribedId,
                 $data['course_reason'] ?? null,
                 $data['expectations'] ?? null,
+                $data['who_recomend'] ?? null,
                 (isset($data['is_medium']) && ($data['is_medium'] == 1 || $data['is_medium'] == 'on')) ? 1 : 0,
                 $hasReligion,
                 $data['religion_mention'] ?? null,
@@ -254,54 +255,57 @@ public function createValidationCode($email, $phone = null) {
     public function getAllSubscribers() {
         $sql = "SELECT 
     p.id AS person_id,
-    p.full_name,
-    p.email,
-    pd.phone,
-    pd.activity_professional,
-    pd.neighborhood,
-    pd.city,
+    p.full_name AS full_name,
+    p.email AS email,
+    pd.phone AS phone,
+    pd.activity_professional AS activity_professional,
+    pd.city AS city,
+    pd.neighborhood AS neighborhood,
     es.id AS subscribed_id,
-    es.status AS enrollment_status,
-    es.created_at AS data_inscricao,
-    s.scheduled_at,
     e.name AS event_name,
+    e.price AS valor_evento,
     et.name AS type_name,
     u.name AS unit_name,
-    e.price AS valor_evento,
-    -- Busca o Status (com COLLATE para evitar erro #1267)
-    COALESCE(
-        (SELECT t.payment_status 
-         FROM transactions t 
-         WHERE t.schedule_id = s.id 
-         AND t.payment_id COLLATE utf8mb4_unicode_ci = es.payment_id COLLATE utf8mb4_unicode_ci 
-         ORDER BY (t.payment_status = 'approved') DESC, t.id DESC 
-         LIMIT 1), 
-    'pending') AS payment_status,
-    -- Busca o E-mail do Pagador (vinculado à mesma lógica)
-    (SELECT t.payer_email 
-     FROM transactions t 
-     WHERE t.schedule_id = s.id 
-     AND t.payment_id COLLATE utf8mb4_unicode_ci = es.payment_id COLLATE utf8mb4_unicode_ci 
-     ORDER BY (t.payment_status = 'approved') DESC, t.id DESC 
-     LIMIT 1) AS payer_email,
-    a.is_medium,
-    a.first_time,
-    a.is_tule_member,
-    a.religion,
-    a.religion_mention,
-    a.course_reason,
-    a.obs_motived,
-    a.who_recomend,
-    a.expectations
-FROM persons p
-INNER JOIN person_details pd ON p.id = pd.person_id
-INNER JOIN events_subscribed es ON p.id = es.person_id
-INNER JOIN schedules s ON es.schedule_id = s.id
-INNER JOIN events e ON s.event_id = e.id
-INNER JOIN event_types et ON s.event_type_id = et.id
-INNER JOIN units u ON s.unit_id = u.id
-LEFT JOIN anamnesis a ON es.id = a.subscribed_id
-ORDER BY es.created_at DESC;";
+    s.scheduled_at AS data_inscricao,
+    es.status AS enrollment_status,
+    es.payment_id AS transacao_gateway,
+    a.course_reason AS course_reason,
+    a.expectations AS expectations,        -- was: expectativas
+    a.who_recomend AS who_recomended,      -- was: quem_recomendou
+    a.religion_mention AS religion_mention,
+    a.obs_motived AS obs_motived,
+    a.is_medium AS is_medium,
+    a.religion AS religion,
+    a.is_tule_member AS is_tule_member,
+    a.first_time AS first_time,
+    t.payer_email AS payer_email,
+    t.payment_status AS payment_status
+FROM 
+    events_subscribed es
+INNER JOIN 
+    persons p ON es.person_id = p.id
+INNER JOIN 
+    (
+        SELECT * FROM person_details
+        WHERE person_id = 26
+        LIMIT 1
+    ) pd ON pd.person_id = p.id
+INNER JOIN 
+    schedules s ON es.schedule_id = s.id
+INNER JOIN 
+    events e ON s.event_id = e.id
+INNER JOIN 
+    event_types et ON s.event_type_id = et.id
+INNER JOIN 
+    units u ON s.unit_id = u.id
+LEFT JOIN 
+    anamnesis a ON es.id = a.subscribed_id
+LEFT JOIN 
+    transactions t ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci 
+WHERE 
+    p.id = 26
+ORDER BY 
+    s.scheduled_at DESC";
 
         // IMPORTANTE: Usando $this->conn que vem do seu BaseModel Singleton
         $stmt = $this->conn->query($sql);

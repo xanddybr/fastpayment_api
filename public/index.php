@@ -48,7 +48,7 @@ $app->get('/beta', function ($request, $response) {
     
     // Manda de volta para o seu Vite local
     return $response
-        ->withHeader('Location', 'http://localhost:4173/beta/?' . $queryString)
+        ->withHeader('Location', 'http://localhost:5173/beta/?' . $queryString)
         ->withStatus(302);
 });
 

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Apr 06, 2026 at 05:08 PM
+-- Generation Time: Apr 18, 2026 at 04:42 AM
 -- Server version: 8.0.42-0ubuntu0.24.04.1
 -- PHP Version: 8.5.3
 
@@ -33,7 +33,7 @@ CREATE TABLE `anamnesis` (
   `course_reason` text,
   `expectations` text,
   `who_recomend` text,
-  `is_medium` tinyint(1) DEFAULT '0',
+  `is_medium` int DEFAULT NULL,
   `religion` tinyint(1) DEFAULT '0',
   `religion_mention` text,
   `is_tule_member` tinyint(1) DEFAULT '0',
@@ -47,7 +47,10 @@ CREATE TABLE `anamnesis` (
 --
 
 INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `expectations`, `who_recomend`, `is_medium`, `religion`, `religion_mention`, `is_tule_member`, `obs_motived`, `first_time`, `created_at`) VALUES
-(16, 22, 'Um amigo espiritual', 'tenho a expectativa de ser um bom curso', 'Meu amigo que me indicou', 1, 1, 'Espirita', 1, 'Busca pela evolução', 1, '2026-04-05 06:45:57');
+(16, 22, 'Precisando mudar', 'tenho a expectativa de ser um bom curso', 'Meu irmao', 1, 1, 'Espirita', 1, 'Busca pela evolução', 1, '2026-04-05 06:45:57'),
+(17, 28, 'Modificar comportamentos', 'tenho a expectativa de ser um bom curso', 'Minha namorada', 0, 1, 'Kinbandeiro', 0, 'Só isso!', 1, '2026-04-06 20:12:08'),
+(18, 29, 'Precisando dar mais atenção a espiritualidade', 'tenho a expectativa de ser um bom curso', 'Meu amigo', 1, 1, 'Universalista', 1, 'Minha esposa', 1, '2026-04-13 04:36:20'),
+(19, 30, 'TrabalharAceitação', 'tenho a expectativa de ser um bom curso', 'Minha esposa', 1, 1, 'Umbandista', 0, 'Meu amigo me indicou', 1, '2026-04-13 04:50:00');
 
 -- --------------------------------------------------------
 
@@ -93,7 +96,9 @@ CREATE TABLE `events_subscribed` (
 
 INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`, `status`, `created_at`) VALUES
 (22, 26, 27, '152597214529', 'confirmed', '2026-04-05 06:45:57'),
-(25, 26, 27, '152597214530', 'pending', '2026-04-05 06:45:57');
+(28, 26, 27, '152597214531', 'confirmed', '2026-04-06 20:12:08'),
+(29, 26, 32, '152597214538', 'confirmed', '2026-04-13 04:36:20'),
+(30, 26, 27, '152597214557', 'confirmed', '2026-04-13 04:50:00');
 
 -- --------------------------------------------------------
 
@@ -168,9 +173,8 @@ CREATE TABLE `persons` (
 --
 
 INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_person_id`, `created_at`) VALUES
-(8, 'Alexandre souza', 'xanddybr@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54'),
-(25, 'Vitor Cesar', 'vitinho@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 2, '2026-04-05 04:09:29'),
-(26, 'TESTE 2026', 't2026@gmail.com', NULL, 'active', 2, '2026-04-05 06:45:57');
+(8, 'Alexandre', 'xanddybr@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54'),
+(26, 'Usuario 2', 't2026@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 2, '2026-04-05 06:45:57');
 
 -- --------------------------------------------------------
 
@@ -195,8 +199,10 @@ CREATE TABLE `person_details` (
 
 INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone`, `street`, `number`, `neighborhood`, `city`) VALUES
 (20, 8, 'Analista', '21986609260', NULL, NULL, 'Jacarépagua', 'Rio de Janeiro'),
-(22, 25, 'Jogador de futbol', '21988889999', NULL, NULL, 'Jacarepagua', 'Rio de janeiro'),
-(23, 26, 'Refrigerador', '21889898559', 'rua petropolis', 123, 'Bangu', 'Rio de Janeiro');
+(23, 26, 'Refrigerador', '21889898559', 'rua petropolis', 123, 'Bangu', 'Rio de Janeiro'),
+(28, 8, 'Analista de sistemas', '21986609260', NULL, NULL, 'Realengo', 'Rio de Janeiro'),
+(29, 26, 'Tecnico de TI', '21986606260', NULL, NULL, 'Realengo', 'Rio de Janeiro'),
+(30, 26, 'Padeiro', '21986609260', NULL, NULL, 'Bangu', 'RJ');
 
 -- --------------------------------------------------------
 
@@ -264,7 +270,8 @@ CREATE TABLE `schedules` (
 --
 
 INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `duration_minutes`, `status`, `created_at`) VALUES
-(27, 15, 1, 17, 100, '2026-11-30 23:00:00', 60, 'available', '2026-03-18 02:21:54');
+(27, 15, 1, 17, 97, '2026-11-30 23:00:00', 60, 'available', '2026-03-18 02:21:54'),
+(32, 12, 1, 17, 97, '2026-04-30 13:00:00', 60, 'available', '2026-04-13 01:57:08');
 
 -- --------------------------------------------------------
 
@@ -291,8 +298,10 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`id`, `preference_id`, `external_reference`, `schedule_id`, `person_id`, `payment_id`, `payer_email`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
-(47, '3281120951-e950878a-7f7e-4c57-9692-c636b14c99a7', 'FP-1775371446-27', 27, 26, '152597214529', 'teste_user_2904943887590020914@testeuser.com', 'approved', 50.00, '2026-04-05 06:44:06', '2026-04-05 06:49:53'),
-(49, '3281120951-cd6227cd-4370-4426-8776-a8c1f9ac537e', 'FP-1775490543-27', 27, NULL, NULL, 'teste_user_2904943887590020914@testeuser.com', 'pendding', 50.00, '2026-04-06 15:49:03', '2026-04-06 16:00:23');
+(47, '3281120951-e950878a-7f7e-4c57-9692-c636b14c99a7', 'FP-1775371446-27', 27, 26, '152597214529', 'teste_user_2904943887590020914@testeuser.com', 'approved', 50.00, '2026-04-05 06:44:06', '2026-04-12 08:37:37'),
+(49, '3281120951-cd6227cd-4370-4426-8776-a8c1f9ac537e', 'FP-1775490543-27', 27, 26, '152597214531', 'teste_user_2904943887590020914@testeuser.com', 'approved', 50.00, '2026-04-06 15:49:03', '2026-04-12 08:12:22'),
+(51, '3281120951-9e70ae25-f3d2-4883-a644-4b71e944ca46', 'FP-1776054597-32', 32, 26, '152597214557', 'teste_user_2904943887590020914@testeuser.com', 'approved', 1.00, '2026-04-13 04:29:57', '2026-04-13 04:54:05'),
+(52, '3281120951-13732ff0-3e0b-42a3-a376-9a4ac4e82d13', 'FP-1776055606-27', 27, 26, '152597214538', 'teste_user_2904943887590020914@testeuser.com', 'approved', 50.00, '2026-04-13 04:46:46', '2026-04-13 04:54:10');
 
 -- --------------------------------------------------------
 
@@ -443,7 +452,7 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `anamnesis`
 --
 ALTER TABLE `anamnesis`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `events`
@@ -455,7 +464,7 @@ ALTER TABLE `events`
 -- AUTO_INCREMENT for table `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT for table `event_types`
@@ -473,13 +482,13 @@ ALTER TABLE `history_logs`
 -- AUTO_INCREMENT for table `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT for table `person_details`
 --
 ALTER TABLE `person_details`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT for table `registered_codes`
@@ -491,13 +500,13 @@ ALTER TABLE `registered_codes`
 -- AUTO_INCREMENT for table `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
 -- AUTO_INCREMENT for table `types_person`
