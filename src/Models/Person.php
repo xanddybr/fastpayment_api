@@ -95,8 +95,8 @@ class Person extends BaseModel {
 
             // 5. Tabela `anamnesis` (Ficha Técnica)
             $sqlAnamnesis = "INSERT INTO anamnesis 
-                (subscribed_id, course_reason, expectations, who_recomend, is_medium, religion, religion_mention, is_tule_member, obs_motived, first_time) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                (subscribed_id, course_reason, who_recomended, is_medium, religion, religion_mention, is_tule_member, first_time) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             $stmtAna = $this->conn->prepare($sqlAnamnesis);
             
             // Tratamento de conversão para TinyInt (0 ou 1)
@@ -105,7 +105,6 @@ class Person extends BaseModel {
             $stmtAna->execute([
                 $subscribedId,
                 $data['course_reason'] ?? null,
-                $data['expectations'] ?? null,
                 $data['who_recomend'] ?? null,
                 (isset($data['is_medium']) && ($data['is_medium'] == 1 || $data['is_medium'] == 'on')) ? 1 : 0,
                 $hasReligion,
@@ -236,7 +235,7 @@ public function createValidationCode($email, $phone = null) {
                     es.id as subscription_id, es.status as subscription_status,
                     e.name as course_name, s.scheduled_at as course_date,
                     -- Campos da Anamnese (Excluindo id e created_at)
-                    a.course_reason, a.expectations, a.who_recomend, a.is_medium, 
+                    a.course_reason, a.who_recomend, a.is_medium, 
                     a.religion, a.religion_mention, a.is_tule_member, a.obs_motived, a.first_time
                 FROM persons p
                 LEFT JOIN person_details pd ON p.id = pd.person_id
@@ -262,24 +261,25 @@ public function createValidationCode($email, $phone = null) {
     pd.city AS city,
     pd.neighborhood AS neighborhood,
     es.id AS subscribed_id,
+    es.created_at AS created_at,
+    es.status AS status,
     e.name AS event_name,
     e.price AS valor_evento,
     et.name AS type_name,
     u.name AS unit_name,
-    s.scheduled_at AS data_inscricao,
+    s.scheduled_at AS event_date,
     es.status AS enrollment_status,
     es.payment_id AS transacao_gateway,
-    a.course_reason AS course_reason,
-    a.expectations AS expectations,        -- was: expectativas
-    a.who_recomend AS who_recomended,      -- was: quem_recomendou
+    a.course_reason AS course_reason,     -- was: expectativas
+    a.who_recomended AS who_recomended,      -- was: quem_recomendou
     a.religion_mention AS religion_mention,
-    a.obs_motived AS obs_motived,
     a.is_medium AS is_medium,
     a.religion AS religion,
     a.is_tule_member AS is_tule_member,
     a.first_time AS first_time,
     t.payer_email AS payer_email,
-    t.payment_status AS payment_status
+    t.payment_status AS payment_status,
+    t.updated_at AS updated_at
 FROM 
     events_subscribed es
 INNER JOIN 
@@ -287,8 +287,6 @@ INNER JOIN
 INNER JOIN 
     (
         SELECT * FROM person_details
-        WHERE person_id = 26
-        LIMIT 1
     ) pd ON pd.person_id = p.id
 INNER JOIN 
     schedules s ON es.schedule_id = s.id
@@ -302,8 +300,7 @@ LEFT JOIN
     anamnesis a ON es.id = a.subscribed_id
 LEFT JOIN 
     transactions t ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci 
-WHERE 
-    p.id = 26
+
 ORDER BY 
     s.scheduled_at DESC";
 

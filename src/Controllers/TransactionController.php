@@ -24,7 +24,7 @@ class TransactionController {
         $scheduleId = $data['schedule_id'] ?? null;
         $personId = $_SESSION['user_id'] ?? null; // Pega da sessão se existir
 
-        $urlngrok = "https://07f1-2804-d41-ec16-4800-3071-9acc-8d63-33da.ngrok-free.app";
+        $urlngrok = "https://fc7f-2804-d41-ec16-4800-d8cd-8cf1-3950-cb49.ngrok-free.app";
 
         // Referência única: FP + Timestamp + ID da Vaga
         $externalRef = "FP-" . time() . "-" . $scheduleId;
@@ -148,7 +148,7 @@ class TransactionController {
         return json_decode($result, true);
     }
 
-    /**
+    /** 
      * Auxiliar para respostas JSON
      */
     private function jsonResponse(Response $response, $data, $status = 200) {

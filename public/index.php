@@ -53,10 +53,7 @@ $app->get('/beta', function ($request, $response) {
 });
 
 // A rota precisa ser IGUAL ao que você configurou no Mercado Pago
-$app->map(['POST', 'OPTIONS'], '/api/webhook/mercadopago', function ($request, $response) {
-    if ($request->getMethod() === 'OPTIONS') {
-        return $response->withStatus(200);
-    }
+$app->map(['POST', 'OPTIONS'],'/api/payment/webhook', function ($request, $response) {
     $controller = new \App\Controllers\TransactionController();
     return $controller->webhook($request, $response);
 });
