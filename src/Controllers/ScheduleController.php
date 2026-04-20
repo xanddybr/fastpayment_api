@@ -7,87 +7,111 @@ use App\Models\Schedule;
 use Exception;
 
 class ScheduleController {
+
     private $scheduleModel;
 
     public function __construct() {
         $this->scheduleModel = new Schedule();
     }
 
-   public function store(Request $request, Response $response) {
+    /**
+     * POST /schedules (admin)
+     * Cria um novo agendamento.
+     */
+    public function store(Request $request, Response $response) {
         date_default_timezone_set('America/Sao_Paulo');
+
+        $data = $request->getParsedBody() ?? [];
+
+        $required = ['scheduled_at', 'event_id', 'event_type_id', 'unit_id', 'vacancies', 'duration_minutes'];
+        foreach ($required as $field) {
+            if (!isset($data[$field]) || $data[$field] === '') {
+                return $this->jsonResponse($response, ['error' => "Campo obrigatório ausente: {$field}"], 400);
+            }
+        }
+
+        if (strtotime($data['scheduled_at']) < (time() + 3600)) {
+            return $this->jsonResponse($response, ['error' => 'Agendamento requer 1h de antecedência.'], 400);
+        }
+
         try {
-            $data = $request->getParsedBody();
-            
-            // 1. Validação de Campos Ampliada
-            // Verificamos se os novos campos (vacancies e duration_minutes) também estão presentes
-           if (
-                !isset($data['scheduled_at']) || 
-                !isset($data['event_id']) || 
-                !isset($data['event_type_id']) ||
-                !isset($data['unit_id']) ||
-                !isset($data['vacancies']) || $data['vacancies'] === '' ||
-                !isset($data['duration_minutes']) || $data['duration_minutes'] === ''
-            ) {
-                return $this->jsonResponse($response, ["error" => "Dados incompletos no formulário."], 400);
-            }
-
-            // 2. Regra de Negócio: 1 hora de antecedência
-            $chosenTime = strtotime($data['scheduled_at']);
-            if ($chosenTime < (time() + 3600)) {
-                return $this->jsonResponse($response, ["error" => "Agendamento requer 1h de antecedência."], 400);
-            }
-
-            // 3. Preparação do Payload para o Model
-            // Garantimos que os valores numéricos sejam tratados corretamente
-            $payload = [
+            $this->scheduleModel->create([
                 'scheduled_at'     => $data['scheduled_at'],
-                'event_id'         => (int)$data['event_id'],
-                'unit_id'          => (int)$data['unit_id'],
-                'event_type_id'    => (int)$data['event_type_id'],
-                'vacancies'        => (int)$data['vacancies'],
-                'duration_minutes' => (int)$data['duration_minutes'],
-                'status'           => 'available' // Status padrão para novos horários
-            ];
+                'event_id'         => (int) $data['event_id'],
+                'unit_id'          => (int) $data['unit_id'],
+                'event_type_id'    => (int) $data['event_type_id'],
+                'vacancies'        => (int) $data['vacancies'],
+                'duration_minutes' => (int) $data['duration_minutes'],
+            ]);
 
-            // 4. Criação no Banco
-            $this->scheduleModel->create($payload);
-            
             return $this->jsonResponse($response, [
-                "success" => true, 
-                "message" => "Agendamento de " . $payload['duration_minutes'] . "min salvo com sucesso!"
+                'success' => true,
+                'message' => "Agendamento de {$data['duration_minutes']}min salvo com sucesso!",
             ], 201);
 
         } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * GET /schedules (admin)
+     * Lista todos os agendamentos sem filtro de status/vagas.
+     */
     public function listAdminSchedules(Request $request, Response $response) {
-
-        $this->scheduleModel->syncSchedulesStatus();
-        $data = $this->scheduleModel->getAllAdmin();
-        return $this->jsonResponse($response, $data);
+        try {
+            $this->scheduleModel->closeExpiredSchedules();
+            $data = $this->scheduleModel->getAllAdmin();
+            return $this->jsonResponse($response, $data);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
+        }
     }
 
+    /**
+     * GET /api/schedules (público)
+     * Lista apenas agendamentos disponíveis, com vagas e no futuro.
+     */
     public function listAvailableSchedules(Request $request, Response $response) {
-        
-        $this->scheduleModel->syncSchedulesStatus();
-        $params = $request->getQueryParams();
-        
-        $data = $this->scheduleModel->getAvailable(
-            $params['slug'] ?? null, 
-            $params['type'] ?? null
-        );
-        
-        return $this->jsonResponse($response, $data);
+        try {
+            $this->scheduleModel->closeExpiredSchedules();
+            $params = $request->getQueryParams();
+            $data   = $this->scheduleModel->getAvailable(
+                $params['slug'] ?? null,
+                $params['type'] ?? null
+            );
+            return $this->jsonResponse($response, $data);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
+        }
     }
 
+    /**
+     * GET /api/cron/schedules-cleanup
+     * Endpoint chamado por cron externo para fechar agendamentos expirados.
+     */
+    public function closeExpiredSchedules(Request $request, Response $response) {
+        try {
+            $this->scheduleModel->closeExpiredSchedules();
+            return $this->jsonResponse($response, ['success' => true, 'message' => 'Agendamentos expirados fechados.']);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * DELETE /schedules/{id} (admin)
+     */
     public function delete(Request $request, Response $response, array $args) {
-        $success = $this->scheduleModel->delete($args['id']);
-        return $this->jsonResponse($response, ["status" => $success ? "sucesso" : "erro"]);
+        try {
+            $this->scheduleModel->delete($args['id']);
+            return $this->jsonResponse($response, ['status' => 'sucesso']);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
+        }
     }
 
-    private function jsonResponse(Response $response, $data, $status = 200) {
+    private function jsonResponse(Response $response, $data, $status = 200): Response {
         $response->getBody()->write(json_encode($data));
         return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }

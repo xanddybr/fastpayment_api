@@ -7,7 +7,7 @@ use App\Models\Transaction as TransactionModel;
 use Exception;
 
 class TransactionController {
-    
+
     private $transactionModel;
 
     public function __construct() {
@@ -15,146 +15,157 @@ class TransactionController {
     }
 
     /**
-     * Gera a preferência no Mercado Pago e grava transação pendente
+     * Gera a preferência no Mercado Pago e grava transação pendente.
+     * O frontend envia: email, schedule_id, person_id (opcional — ainda pode ser null)
      */
     public function createPayment(Request $request, Response $response) {
-        $data = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true);
-        
-        $email = $data['email'] ?? null;
+        $data       = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
+        $email      = $data['email']       ?? null;
         $scheduleId = $data['schedule_id'] ?? null;
-        $personId = $_SESSION['user_id'] ?? null; // Pega da sessão se existir
+        $personId   = $data['person_id']   ?? ($_SESSION['user_id'] ?? null);
 
-        $urlngrok = "https://fc7f-2804-d41-ec16-4800-d8cd-8cf1-3950-cb49.ngrok-free.app";
+        if (!$email || !$scheduleId) {
+            return $this->jsonResponse($response, ['error' => 'email e schedule_id são obrigatórios'], 400);
+        }
 
-        // Referência única: FP + Timestamp + ID da Vaga
-        $externalRef = "FP-" . time() . "-" . $scheduleId;
+        $urlBase     = 'https://fc7f-2804-d41-ec16-4800-d8cd-8cf1-3950-cb49.ngrok-free.app';
+        $externalRef = 'FP-' . time() . '-' . $scheduleId;
 
         try {
             $event = $this->transactionModel->getEventDetailsBySchedule($scheduleId);
-            $price = (float)$event['price'];
+            if (!$event) {
+                return $this->jsonResponse($response, ['error' => 'Agendamento não encontrado'], 404);
+            }
+            $price = (float) $event['price'];
 
-            // GRAVA NO BANCO (Nomes de colunas agora batem com seu CREATE TABLE)
-            $this->transactionModel->createPendingTransaction($scheduleId, $personId, $email, $price, $externalRef);
+            $this->transactionModel->createPendingTransaction(
+                $scheduleId, $personId, $email, $price, $externalRef
+            );
 
             $preferenceData = [
-                "items" => [[
-                    "title" => mb_strcut($event['type_name'] . ": " . $event['name'], 0, 250),
-                    "quantity" => 1,
-                    "unit_price" => $price,
-                    "currency_id" => "BRL"
+                'items' => [[
+                    'title'       => mb_strcut($event['type_name'] . ': ' . $event['name'], 0, 250),
+                    'quantity'    => 1,
+                    'unit_price'  => $price,
+                    'currency_id' => 'BRL',
                 ]],
-                "payer" => ["email" => $email],
-                "external_reference" => $externalRef,
-                "notification_url" => $urlngrok . "/api/payment/webhook",
-                "auto_return" => "approved",
-                "back_urls" => [
-                    "success" => $urlngrok . "/beta"
-                ]
+                'payer'              => ['email' => $email],
+                'external_reference' => $externalRef,
+                'notification_url'   => $urlBase . '/api/payment/webhook',
+                'auto_return'        => 'approved',
+                'back_urls'          => ['success' => $urlBase . '/beta'],
             ];
 
             $mpResponse = $this->callMercadoPagoAPI($_ENV['MP_ACCESS_TOKEN'], $preferenceData);
 
-            if (isset($mpResponse['id'])) {
-                // ATUALIZA O PREFERENCE_ID
-                $this->transactionModel->updatePreferenceId($externalRef, $mpResponse['id']);
-                return $this->jsonResponse($response, ["init_point" => $mpResponse['init_point']]);
+            if (!isset($mpResponse['id'])) {
+                throw new Exception('Erro ao gerar preferência no Mercado Pago.');
             }
-            
-            throw new \Exception("Erro ao gerar preferência no Mercado Pago.");
 
-        } catch (\Exception $e) {
-            error_log("ERRO CREATE_PAYMENT: " . $e->getMessage());
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+            $this->transactionModel->updatePreferenceId($externalRef, $mpResponse['id']);
+            return $this->jsonResponse($response, ['init_point' => $mpResponse['init_point']]);
+
+        } catch (Exception $e) {
+            error_log('ERRO CREATE_PAYMENT: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
         }
-    }
-
-   
-    public function webhook(Request $request, Response $response): Response {
-        $payload = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true);
-        
-        // O MP manda o external_reference na consulta detalhada ou no payload se for merchant_order
-        $paymentId = $payload['data']['id'] ?? ($payload['id'] ?? null);
-
-        if ($paymentId) {
-            // Buscamos a verdade no MP
-            $paymentData = $this->getPaymentDetailsFromMP($paymentId);
-            $extRef = $paymentData['external_reference'] ?? null;
-
-            if ($extRef && $paymentData['status'] === 'approved') {
-                // USAMOS A PONTE PARA DAR BAIXA
-                $this->transactionModel->confirmPayment($paymentId, $extRef);
-            }
-        }
-
-        return $response->withStatus(200);
     }
 
     /**
-     * Verifica se um e-mail possui pagamentos aprovados sem inscrição vinculada
+     * Webhook do Mercado Pago — chamada server-to-server, sem sessão.
+     * Apenas confirma o pagamento no model. Sempre retorna 200 para o MP.
+     */
+    public function webhook(Request $request, Response $response): Response {
+    $body        = $request->getParsedBody() 
+                ?? json_decode(file_get_contents('php://input'), true) 
+                ?? [];
+    $queryParams = $request->getQueryParams();
+
+    // Trata formato novo (data.id no body) e formato antigo (?id= query param)
+    $paymentId = $body['data']['id']   // formato novo
+              ?? $queryParams['id']    // formato antigo query param ✅
+              ?? $body['resource']     // formato antigo body
+              ?? null;
+
+    $topic = $queryParams['topic'] ?? $body['type'] ?? null;
+
+    error_log("WEBHOOK | topic={$topic} | paymentId={$paymentId}");
+
+    // Ignora merchant_order — só processa payment
+    if ($paymentId && $topic !== 'merchant_order') {
+        $paymentData = $this->getPaymentDetailsFromMP($paymentId);
+        $extRef      = $paymentData['external_reference'] ?? null;
+        $status      = $paymentData['status']             ?? null;
+
+        error_log("WEBHOOK MP | status={$status} | extRef={$extRef}");
+
+        if ($extRef && $status === 'approved') {
+            $result = $this->transactionModel->confirmPayment($paymentId, $extRef);
+            error_log("WEBHOOK confirmPayment | " . ($result ? 'OK' : 'JA_PROCESSADO'));
+        }
+    }
+
+    return $response->withStatus(200);
+}
+
+    /**
+     * Verifica se o e-mail tem pagamento aprovado sem inscrição finalizada.
+     * Usado no frontend pós-pagamento para decidir se exibe o formulário.
      */
     public function checkPayment(Request $request, Response $response) {
-        $data = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true);
-        $email = isset($data['email']) ? trim($data['email']) : null;
+        $data  = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
+        $email = trim($data['email'] ?? '');
 
         if (!$email) {
-            return $this->jsonResponse($response, ["has_paid" => false, "error" => "E-mail não fornecido"], 400);
+            return $this->jsonResponse($response, ['has_paid' => false, 'error' => 'E-mail não fornecido'], 400);
         }
 
         try {
-            // Busca no Model as pendências (considerando trava de data/hora do evento)
             $pendencias = $this->transactionModel->getPaidPendingRegistrations($email);
-
             return $this->jsonResponse($response, [
-                "has_paid" => count($pendencias) > 0,
-                "pendencias" => $pendencias
+                'has_paid'   => count($pendencias) > 0,
+                'pendencias' => $pendencias,
             ]);
         } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
         }
     }
 
-    private function getPaymentDetailsFromMP($paymentId) {
-        $token = $_ENV['MP_ACCESS_TOKEN'];
-        $ch = curl_init("https://api.mercadopago.com/v1/payments/" . $paymentId);
+    // -------------------------------------------------------------------------
+    // Helpers privados
+    // -------------------------------------------------------------------------
+
+    private function getPaymentDetailsFromMP($paymentId): array {
+        $ch = curl_init('https://api.mercadopago.com/v1/payments/' . $paymentId);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer " . $token
-            ],
-            CURLOPT_SSL_VERIFYPEER => false
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $_ENV['MP_ACCESS_TOKEN']],
+            CURLOPT_SSL_VERIFYPEER => false,
         ]);
         $result = curl_exec($ch);
         curl_close($ch);
-        return json_decode($result, true);
+        return json_decode($result, true) ?? [];
     }
 
-    /**
-     * Comunicação direta com a API do Mercado Pago
-     */
-    private function callMercadoPagoAPI($token, $payload) {
-        $ch = curl_init("https://api.mercadopago.com/checkout/preferences");
+    private function callMercadoPagoAPI($token, $payload): array {
+        $ch = curl_init('https://api.mercadopago.com/checkout/preferences');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json", 
-                "Authorization: Bearer " . $token
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $token,
             ],
-            CURLOPT_SSL_VERIFYPEER => false // Em produção, altere para true se tiver certificados SSL
+            CURLOPT_SSL_VERIFYPEER => false,
         ]);
         $result = curl_exec($ch);
         curl_close($ch);
-        return json_decode($result, true);
+        return json_decode($result, true) ?? [];
     }
 
-    /** 
-     * Auxiliar para respostas JSON
-     */
-    private function jsonResponse(Response $response, $data, $status = 200) {
+    private function jsonResponse(Response $response, $data, $status = 200): Response {
         $response->getBody()->write(json_encode($data));
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($status);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 }

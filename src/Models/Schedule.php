@@ -2,89 +2,105 @@
 namespace App\Models;
 
 use PDO;
+use Exception;
 
 class Schedule extends BaseModel {
 
-    public function create($data) {
-        $query = "INSERT INTO schedules (unit_id, event_id, event_type_id, vacancies, scheduled_at, duration_minutes, status) 
-                  VALUES (:unit, :event, :type, :vacancies, :scheduled_at, :duration, 'available')";
-        $stmt = $this->conn->prepare($query);
-        return $stmt->execute([ 
-            ":unit"         => $data['unit_id'], 
-            ":event"        => $data['event_id'], 
-            ":type"         => $data['event_type_id'],
-            ":vacancies"    => $data['vacancies'], 
-            ":scheduled_at" => $data['scheduled_at'],
-            ":duration" => $data['duration_minutes']
+    public function create(array $data) {
+        $stmt = $this->conn->prepare("
+            INSERT INTO schedules
+                (unit_id, event_id, event_type_id, vacancies, scheduled_at, duration_minutes, status)
+            VALUES
+                (:unit, :event, :type, :vacancies, :scheduled_at, :duration, 'available')
+        ");
+        return $stmt->execute([
+            ':unit'         => $data['unit_id'],
+            ':event'        => $data['event_id'],
+            ':type'         => $data['event_type_id'],
+            ':vacancies'    => $data['vacancies'],
+            ':scheduled_at' => $data['scheduled_at'],
+            ':duration'     => $data['duration_minutes'],
         ]);
     }
 
     public function getAllAdmin() {
-        $query = "SELECT s.id as schedule_id, e.name as event_name, e.price as event_price,
-                         et.name as type_name, u.name as unit_name, s.scheduled_at, s.duration_minutes,
-                         s.vacancies, s.status, e.slug
-                  FROM schedules s
-                  JOIN units u ON s.unit_id = u.id
-                  JOIN events e ON s.event_id = e.id
-                  JOIN event_types et ON s.event_type_id = et.id
-                  ORDER BY s.scheduled_at DESC";
-        return $this->conn->query($query)->fetchAll(PDO::FETCH_ASSOC);
+        $sql = "SELECT
+                    s.id            AS schedule_id,
+                    e.name          AS event_name,
+                    e.price         AS event_price,
+                    e.slug          AS event_slug,
+                    et.name         AS type_name,
+                    u.name          AS unit_name,
+                    s.scheduled_at,
+                    s.duration_minutes,
+                    s.vacancies,
+                    s.status
+                FROM schedules s
+                JOIN units       u  ON s.unit_id       = u.id
+                JOIN events      e  ON s.event_id      = e.id
+                JOIN event_types et ON s.event_type_id = et.id
+                ORDER BY s.scheduled_at DESC";
+
+        return $this->conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Lista agendamentos disponíveis para o público.
+     * Regras:
+     *   - status = 'available'
+     *   - ainda no futuro (scheduled_at > NOW())
+     *   - com vagas (vacancies > 0)
+     * Filtros opcionais por slug do evento e/ou tipo.
+     */
     public function getAvailable($eventSlug = null, $typeSlug = null) {
-        $sql = "SELECT s.id as schedule_id, e.name as event_name, e.price as event_price,
-                       et.name as type_name, u.name as unit_name, s.scheduled_at, s.duration_minutes,
-                       s.vacancies, e.slug as event_slug, et.slug as type_slug
+        $sql = "SELECT
+                    s.id            AS schedule_id,
+                    e.name          AS event_name,
+                    e.price         AS event_price,
+                    e.slug          AS event_slug,
+                    et.name         AS type_name,
+                    et.slug         AS type_slug,
+                    u.name          AS unit_name,
+                    s.scheduled_at,
+                    s.duration_minutes,
+                    s.vacancies
                 FROM schedules s
-                JOIN events e ON s.event_id = e.id
-                JOIN units u ON s.unit_id = u.id
+                JOIN events      e  ON s.event_id      = e.id
+                JOIN units       u  ON s.unit_id       = u.id
                 JOIN event_types et ON s.event_type_id = et.id
-                WHERE s.status = 'available'";
+                WHERE s.status    = 'available'
+                  AND s.vacancies > 0
+                  AND s.scheduled_at > NOW()";
 
-        if ($eventSlug) $sql .= " AND LOWER(e.slug) = :eventSlug";
+        if ($eventSlug) $sql .= " AND LOWER(e.slug)  = :eventSlug";
         if ($typeSlug)  $sql .= " AND LOWER(et.slug) = :typeSlug";
 
+        $sql .= " ORDER BY s.scheduled_at ASC";
+
         $stmt = $this->conn->prepare($sql);
-        if ($eventSlug) $stmt->bindValue(':eventSlug', $eventSlug);
-        if ($typeSlug)  $stmt->bindValue(':typeSlug', $typeSlug);
+        if ($eventSlug) $stmt->bindValue(':eventSlug', strtolower($eventSlug));
+        if ($typeSlug)  $stmt->bindValue(':typeSlug',  strtolower($typeSlug));
 
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
- * Sincroniza o status da agenda:
- * 1. Fecha o que já passou ou está acontecendo (<= Agora)
- * 2. Abre o que é futuro (> 1 hora a partir de agora)
- */
-    public function syncSchedulesStatus() {
-        try {
-            $this->conn->beginTransaction();
-
-            // 1. Marcar como 'unavailable' tudo que já passou da hora de início
-            // ou que está acontecendo exatamente agora.
-            $sqlClose = "UPDATE schedules 
-                        SET status = 'unavailable' 
-                        WHERE scheduled_at <= NOW() 
-                        AND status = 'available'";
-            $this->conn->query($sqlClose)->execute();
-
-            // 2. Marcar como 'available' tudo que está no futuro 
-            // (com margem de segurança maior que 1 hora)
-            $sqlOpen = "UPDATE schedules 
-                        SET status = 'available' 
-                        WHERE status = 'unavailable' 
-                        AND scheduled_at > DATE_ADD(NOW(), INTERVAL 1 HOUR)";
-            $this->conn->query($sqlOpen)->execute();
-
-            $this->conn->commit();
-            return true;
-        } catch (\Exception $e) {
-            if ($this->conn->inTransaction()) {
-                $this->conn->rollBack();
-            }
-            throw $e;
-        }
+     * Fecha agendamentos que já passaram da hora de início.
+     * Chamado pelo cron (/api/cron/schedules-cleanup) e antes de cada listagem.
+     *
+     * Não reabre agendamentos — status só vai de 'available' → 'unavailable'.
+     * Vagas zeradas são tratadas no getAvailable (filtro vacancies > 0),
+     * assim o admin ainda enxerga o registro no painel.
+     */
+    public function closeExpiredSchedules() {
+        $stmt = $this->conn->prepare("
+            UPDATE schedules
+            SET status = 'unavailable'
+            WHERE scheduled_at <= NOW()
+              AND status = 'available'
+        ");
+        return $stmt->execute();
     }
 
     public function delete($id) {

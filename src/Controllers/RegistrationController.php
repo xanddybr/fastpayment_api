@@ -1,276 +1,151 @@
 <?php
-
 namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\Registration;
 use App\Models\Person;
+use App\Models\Transaction as TransactionModel;
 use Exception;
 
 class RegistrationController {
 
     private $registrationModel;
 
-   public function __construct() {
+    public function __construct() {
         $this->registrationModel = new Registration();
     }
-    
-
-   public function create($request, $response) {
-        $data = $request->getParsedBody();
-        
-        try {
-            // Verificação básica: sem o schedule_id não há inscrição
-            if (empty($data['schedule_id'])) {
-                throw new \Exception("ID do agendamento não fornecido.");
-            }
-
-            $personModel = new \App\Models\Person(); 
-            
-            // O saveCompleteRegistration deve orquestrar os inserts em:
-            // persons -> person_details -> events_subscribed -> anamnesis
-            $id = $personModel->saveCompleteRegistration($data);
-            
-            $response->getBody()->write(json_encode([
-                "status" => "sucesso", 
-                "subscribed_id" => $id,
-                "mensagem" => "Inscrição realizada com sucesso! Nossa equipe entrará em contato."
-            ]));
-            
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
-
-        } catch (\Exception $e) {
-            $response->getBody()->write(json_encode([
-                "status" => "erro", 
-                "mensagem" => "Falha ao processar inscrição: " . $e->getMessage()
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
-        }
-    }
-    
-   public function listAllSubscribers($request, $response) {
-        try {
-            // Se o seu padrão for Singleton, você provavelmente usa algo como:
-            $personModel = new \App\Models\Person(); 
-            
-            $subscribers = $personModel->getAllSubscribers();
-
-            $response->getBody()->write(json_encode($subscribers));
-            return $response
-                ->withHeader('Content-Type', 'application/json')
-                ->withStatus(200);
-
-        } catch (\Exception $e) {
-            $response->getBody()->write(json_encode([
-                "status" => "erro",
-                "mensagem" => "Erro no Controller: " . $e->getMessage()
-            ]));
-            return $response->withStatus(500);
-        }
-    }
 
     /**
-     * Card 7.4: Verifica se o cliente já pagou mas não finalizou a inscrição
-     * Utilizado no botão de recuperação da agenda pública
+     * POST /api/register/subscribers
+     *
+     * Finaliza a inscrição após o pagamento já ter sido aprovado pelo webhook.
+     *
+     * O frontend envia:
+     *   payment_id         — ID do pagamento aprovado pelo MP
+     *   schedule_id        — ID da agenda escolhida
+     *   student_full_name  — nome completo
+     *   student_email      — e-mail (mesmo usado no checkout)
+     *   student_phone      — telefone
+     *   activity_professional, neighborhood, city — detalhes
+     *   course_reason, who_recomended, is_medium,
+     *   religion, religion_mention, is_tule_member, first_time — anamnese
+     *
+     * O que este método faz (e SOMENTE isso):
+     *   1. Cria ou recupera a pessoa em `persons` + `person_details`
+     *   2. Atualiza person_id em `transactions` e `events_subscribed`
+     *   3. Cria a ficha de anamnese em `anamnesis`
+     *
+     * NÃO mexe em vagas (já decrementado pelo webhook).
+     * NÃO insere em events_subscribed (já feito pelo webhook).
      */
-    public function verifyPendingRegistration(Request $request, Response $response) {
-        try {
-            $params = $request->getQueryParams();
-            $email = $params['email'] ?? null;
-            $scheduleId = $params['schedule_id'] ?? null;
+    
+    public function create(Request $request, Response $response) {
+        $data = $request->getParsedBody() ?? [];
 
-            if (!$email || !$scheduleId) {
-                return $this->jsonResponse($response, ["error" => "E-mail e Agenda são obrigatórios"], 400);
-            }
-
-            // Busca se existe pagamento aprovado sem inscrição vinculada
-            $sql = "SELECT id FROM payments 
-                    WHERE payer_email = :email 
-                    AND status = 'approved' 
-                    AND id NOT IN (SELECT payment_id FROM events_subscribed)
-                    LIMIT 1";
-            
-            $stmt = $this->registrationModel->getConnection()->prepare($sql);
-            $stmt->execute([':email' => $email]);
-            $pendingPayment = $stmt->fetch();
-
+        if (empty($data['schedule_id']) || empty($data['payment_id'])) {
             return $this->jsonResponse($response, [
-                "pending" => (bool)$pendingPayment,
-                "payment_id" => $pendingPayment ? $pendingPayment['id'] : null,
-                "message" => $pendingPayment ? "Pagamento localizado! Prossiga para finalizar." : "Nenhuma pendência encontrada."
-            ]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+                'status'   => 'erro',
+                'mensagem' => 'schedule_id e payment_id são obrigatórios.',
+            ], 400);
         }
-    }
-
-    public function finalizeRegistration(Request $request, Response $response) {
-        $data = $request->getParsedBody();
-        $email = $data['email'] ?? null;
 
         try {
-            $db = $this->registrationModel->getConnection();
+            $personModel      = new Person();
+            $transactionModel = new TransactionModel();
+            $db               = $this->registrationModel->getConnection();
+
             $db->beginTransaction();
 
-            // 1. Atualiza/Salva dados da pessoa e detalhes profissionais
-            $personModel = new Person();
-            $data['type_person_id'] = 2; // Cliente
-            $personId = $personModel->saveUnified($data);
+            // 1. Cria ou recupera a pessoa (upsert por e-mail)
+            $personId = $personModel->saveCompleteRegistration($data);
 
-            // 2. Se houver um payment_id (vindo da recuperação ou webhook), vincula a inscrição
-            // Esta parte será integrada com o Model Subscription no próximo passo
-            
+            // 2. Liga o person_id ao pagamento já aprovado
+            $transactionModel->linkPersonToPayment($data['payment_id'], $personId);
+
+            // 3. Busca o events_subscribed criado pelo webhook para criar a anamnese
+            $stmt = $db->prepare("
+                SELECT id FROM events_subscribed
+                WHERE payment_id = :payid
+                LIMIT 1
+            ");
+            $stmt->execute([':payid' => $data['payment_id']]);
+            $subscription = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$subscription) {
+                throw new Exception('Inscrição não encontrada. O pagamento pode ainda estar sendo processado.');
+            }
+
+            // 4. Cria a ficha de anamnese
+            $personModel->createAnamnesis($subscription['id'], $data);
+
             $db->commit();
-            return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "message" => "Dados profissionais salvos com sucesso!"
-            ]);
-
-        } catch (Exception $e) {
-            if ($this->registrationModel->getConnection()->inTransaction()) {
-                $this->registrationModel->getConnection()->rollBack();
-            }
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
-        }
-    }
-
-    public function dashboardStats(Request $request, Response $response) {
-        try {
-            $list = $this->registrationModel->getDashboardReport();
-            $totalRevenue = 0;
-            $approvedCount = 0;
-
-            foreach ($list as $item) {
-                if ($item['payment_status'] === 'approved') {
-                    $totalRevenue += (float)$item['paid_amount'];
-                    $approvedCount++;
-                }
-            }
 
             return $this->jsonResponse($response, [
-                "stats" => [
-                    "total_entries" => count($list),
-                    "approved_payments" => $approvedCount,
-                    "total_revenue" => number_format($totalRevenue, 2, '.', '')
-                ],
-                "registrations" => $list
-            ]);
+                'status'        => 'sucesso',
+                'subscribed_id' => $subscription['id'],
+                'mensagem'      => 'Inscrição realizada com sucesso!',
+            ], 201);
+
         } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+            if (isset($db) && $db->inTransaction()) $db->rollBack();
+            return $this->jsonResponse($response, [
+                'status'   => 'erro',
+                'mensagem' => $e->getMessage(),
+            ], 400);
         }
     }
 
     /**
-     * Método auxiliar para respostas JSON
+     * GET /subscribers — Lista todos os inscritos (admin)
      */
-    
+    public function listAllSubscribers(Request $request, Response $response) {
+        try {
+            $personModel = new Person();
+            $data        = $personModel->getAllSubscribers();
+            return $this->jsonResponse($response, $data);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ['status' => 'erro', 'mensagem' => $e->getMessage()], 500);
+        }
+    }
 
+    /**
+     * GET /dashboard/summary — Receita total (admin)
+     */
+    public function getDashboardSummary(Request $request, Response $response) {
+        try {
+            $revenue = $this->registrationModel->getTotalRevenue();
+            return $this->jsonResponse($response, [
+                'status' => 'sucesso',
+                'data'   => ['total_revenue' => (float) $revenue, 'currency' => 'BRL'],
+            ]);
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * GET /financial/history — Histórico de pagamentos (admin)
+     */
     public function paymentHistory(Request $request, Response $response) {
         try {
             $history = $this->registrationModel->getPaymentHistory();
             return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "total" => count($history),
-                "data" => $history
+                'status' => 'sucesso',
+                'total'  => count($history),
+                'data'   => $history,
             ]);
         } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Card 11.3: Finaliza o processo de inscrição (Pode ser chamado manualmente ou via Webhook)
-     */
-    public function confirmSubscription(Request $request, Response $response) {
-        try {
-            $data = $request->getParsedBody();
-            $personId   = $data['person_id'] ?? null;
-            $scheduleId = $data['schedule_id'] ?? null;
-            $paymentId  = $data['payment_id'] ?? null;
+    // -------------------------------------------------------------------------
+    // Helper
+    // -------------------------------------------------------------------------
 
-            if (!$personId || !$scheduleId || !$paymentId) {
-                return $this->jsonResponse($response, ["error" => "Dados insuficientes para confirmar inscrição"], 400);
-            }
-
-            $this->registrationModel->completeSubscription($personId, $scheduleId, $paymentId);
-
-            return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "mensagem" => "Inscrição confirmada e vaga garantida!"
-            ]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
-        }
-    }
-    /**
-     * Card 10.0: Lista o extrato real da tabela transactions
-     */
-    public function listTransactions(Request $request, Response $response) {
-        try {
-            $data = $this->registrationModel->getTransactionsReport();
-            
-            return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "total" => count($data),
-                "data" => $data
-            ]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
-        }
-    }
-
-    public function getDashboardSummary(Request $request, Response $response) {
-        try {
-            $revenue = $this->registrationModel->getTotalRevenue();
-            
-            return $this->jsonResponse($response, [
-                "status" => "sucesso",
-                "data" => [
-                    "total_revenue" => (float)$revenue,
-                    "currency" => "BRL"
-                ]
-            ]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["error" => $e->getMessage()], 500);
-        }
-    }
-
-    // Dentro de src/Controllers/RegistrationController.php
-
-    public function completeSubscription(Request $request, Response $response) {
-        try {
-            $data = $request->getParsedBody();
-
-            // Pega os IDs enviados pelo Postman
-            $personId   = $data['person_id'] ?? null;
-            $scheduleId = $data['schedule_id'] ?? null;
-            $paymentId  = $data['payment_id'] ?? null;
-
-            if (!$personId || !$scheduleId || !$paymentId) {
-                $response->getBody()->write(json_encode(["error" => "Dados incompletos"]));
-                return $response->withStatus(400);
-            }
-
-            // CHAMA O MODEL (A função que corrigimos antes com o schema.sql)
-            $success = $this->registrationModel->completeSubscription($personId, $scheduleId, $paymentId);
-
-            if ($success) {
-                $response->getBody()->write(json_encode(["status" => "sucesso", "message" => "Inscrição confirmada!"]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-            }
-
-        } catch (\Exception $e) {
-            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-        }
-    }
-
-    private function jsonResponse(Response $response, $data, $status = 200) {
+    private function jsonResponse(Response $response, $data, $status = 200): Response {
         $response->getBody()->write(json_encode($data));
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($status);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
-    
 }
