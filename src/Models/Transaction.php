@@ -23,44 +23,24 @@ class Transaction extends BaseModel {
     /**
      * Busca transação PENDING para email + schedule
      */
-    public function findPendingByEmailAndSchedule($email, $scheduleId) {
-        $stmt = $this->conn->prepare("
-            SELECT * FROM transactions
-            WHERE payer_email    = :email
-              AND schedule_id    = :sid
-              AND payment_status = 'pending'
-            LIMIT 1
-        ");
-        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
+   public function findApprovedByEmailAndSchedule($email, $scheduleId) {
+    $stmt = $this->conn->prepare("
+        SELECT t.*, 
+               COALESCE(es.status, 'no_subscription') AS subscription_status,
+               es.payment_id AS es_payment_id
+        FROM transactions t
+        LEFT JOIN events_subscribed es 
+               ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+        WHERE t.payer_email    = :email
+          AND t.schedule_id    = :sid
+          AND t.payment_status = 'approved'
+        ORDER BY t.updated_at DESC
+        LIMIT 1
+    ");
+    $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
 
-    /**
-     * Busca transação APPROVED para email + schedule.
-     * Retorna também o status da inscrição em events_subscribed.
-     *
-     * subscription_status possíveis:
-     *   'pending'   → pagou mas ainda não preencheu o formulário
-     *   'confirmed' → inscrição totalmente concluída
-     *   null        → events_subscribed ainda não criado (não deveria acontecer)
-     */
-    public function findApprovedByEmailAndSchedule($email, $scheduleId) {
-        $stmt = $this->conn->prepare("
-            SELECT t.*, es.status AS subscription_status
-            FROM transactions t
-            LEFT JOIN events_subscribed es ON es.payment_id = t.payment_id
-            WHERE t.payer_email    = :email
-              AND t.schedule_id    = :sid
-              AND t.payment_status = 'approved'
-            LIMIT 1
-        ");
-        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Reutiliza transação pending existente com novo external_reference
-     */
     public function reuseExistingPendingTransaction($existingExternalRef, $newExternalRef) {
         $stmt = $this->conn->prepare("
             UPDATE transactions
@@ -216,31 +196,32 @@ class Transaction extends BaseModel {
      * Retorna transações aprovadas sem inscrição finalizada para um e-mail.
      */
     public function getPaidPendingRegistrations($email) {
-        $sql = "SELECT t.payment_id, t.schedule_id, t.person_id,
-                       e.name AS event_name, s.scheduled_at
-                FROM transactions t
-                JOIN schedules s ON t.schedule_id = s.id
-                JOIN events e    ON s.event_id    = e.id
-                WHERE t.payer_email    = :email
-                  AND t.payment_status = 'approved'
-                  AND s.scheduled_at  >= NOW()
-                  AND NOT EXISTS (
-                      SELECT 1 FROM anamnesis a
-                      JOIN events_subscribed es ON a.subscribed_id = es.id
-                      WHERE es.payment_id = t.payment_id
-                  )
-                ORDER BY s.scheduled_at ASC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute([':email' => $email]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+    $sql = "SELECT t.payment_id, t.schedule_id, t.person_id,
+                   e.name AS event_name, s.scheduled_at
+            FROM transactions t
+            JOIN schedules s ON t.schedule_id = s.id
+            JOIN events e    ON s.event_id    = e.id
+            JOIN events_subscribed es ON es.payment_id = t.payment_id
+            WHERE t.payer_email    = :email
+              AND t.payment_status = 'approved'
+              AND s.scheduled_at  >= NOW()
+              AND es.status        = 'pending'
+              AND NOT EXISTS (
+                  SELECT 1 FROM anamnesis a
+                  WHERE a.subscribed_id = es.id
+              )
+            ORDER BY s.scheduled_at ASC";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->execute([':email' => $email]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
     /**
      * Sanitização: deleta transações 'pending' expiradas.
      * Tempo configurável via PENDING_EXPIRY_MINUTES no .env (padrão 60min).
      */
     public function deleteStalePendingTransactions(): int {
-        $minutes = (int) (1 ?? 60);
+        $minutes = (int) (5 ?? 60);
         $stmt = $this->conn->prepare("
             DELETE FROM transactions
             WHERE payment_status <> 'approved'
@@ -249,4 +230,5 @@ class Transaction extends BaseModel {
         $stmt->execute([':minutes' => $minutes]);
         return $stmt->rowCount();
     }
+
 }

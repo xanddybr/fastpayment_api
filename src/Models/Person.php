@@ -62,14 +62,17 @@ class Person extends BaseModel {
     public function createAnamnesis(int $subscribedId, array $data): void {
         $this->conn->prepare("
             INSERT INTO anamnesis
-                (subscribed_id, course_reason, who_recomended, is_medium, religion_mention, is_tule_member, first_time)
+                (subscribed_id, course_reason, who_recomended, is_medium,
+                 religion, religion_mention, is_tule_member, first_time)
             VALUES
-                (:subid, :reason, :who, :medium, :rel_mention, :tule, :first)
+                (:subid, :reason, :who, :medium,
+                 :religion, :rel_mention, :tule, :first)
         ")->execute([
             ':subid'       => $subscribedId,
             ':reason'      => $data['course_reason']      ?? null,
             ':who'         => $data['who_recomended']     ?? null,
             ':medium'      => $this->toBool($data['is_medium']      ?? 0),
+            ':religion'    => $this->toBool($data['religion']       ?? 0),
             ':rel_mention' => $data['religion_mention']   ?? null,
             ':tule'        => $this->toBool($data['is_tule_member'] ?? 0),
             ':first'       => $this->toBool($data['first_time']     ?? 0),
@@ -204,41 +207,49 @@ class Person extends BaseModel {
 
     public function getAllSubscribers() {
         $sql = "SELECT
-                    p.id                        AS person_id,
-                    p.full_name,
-                    p.email,
-                    pd.phone,
-                    pd.activity_professional,
-                    pd.city,
-                    pd.neighborhood,
-                    es.id                       AS subscribed_id,
-                    es.created_at,
-                    es.status                   AS enrollment_status,
-                    e.name                      AS event_name,
-                    e.price                     AS valor_evento,
-                    et.name                     AS type_name,
-                    u.name                      AS unit_name,
-                    s.scheduled_at              AS event_date,
-                    es.payment_id               AS transacao_gateway,
-                    a.course_reason,
-                    a.who_recomended,
-                    a.religion_mention,
-                    a.is_medium,
-                    a.is_tule_member,
-                    a.first_time,
-                    t.payer_email,
-                    t.payment_status,
-                    t.updated_at
-                FROM events_subscribed es
-                INNER JOIN persons p            ON es.person_id    = p.id
-                LEFT JOIN person_details pd     ON pd.person_id    = p.id
-                INNER JOIN schedules s          ON es.schedule_id  = s.id
-                INNER JOIN events e             ON s.event_id      = e.id
-                INNER JOIN event_types et       ON s.event_type_id = et.id
-                INNER JOIN units u              ON s.unit_id       = u.id
-                LEFT JOIN anamnesis a           ON es.id           = a.subscribed_id
-                LEFT JOIN transactions t        ON es.payment_id   = t.payment_id COLLATE utf8mb4_unicode_ci
-                ORDER BY s.scheduled_at DESC";
+    p.id                        AS person_id,
+    p.full_name,
+    p.email,
+    pd.phone,
+    pd.activity_professional,
+    pd.city,
+    pd.neighborhood,
+    es.id                       AS subscribed_id,
+    es.created_at,
+    es.status                   AS enrollment_status,
+    e.name                      AS event_name,
+    e.price                     AS valor_evento,
+    et.name                     AS type_name,
+    u.name                      AS unit_name,
+    s.scheduled_at              AS event_date,
+    es.payment_id               AS transacao_gateway,
+    a.course_reason,
+    a.who_recomended,
+    a.religion_mention,
+    a.is_medium,
+    a.is_tule_member,
+    a.first_time,
+    t.payer_email,
+    t.payment_status,
+    t.updated_at
+FROM events_subscribed es
+INNER JOIN persons p        ON es.person_id   = p.id
+LEFT JOIN person_details pd ON pd.person_id   = p.id
+INNER JOIN schedules s      ON es.schedule_id = s.id
+INNER JOIN events e         ON s.event_id     = e.id
+INNER JOIN event_types et   ON s.event_type_id = et.id
+INNER JOIN units u          ON s.unit_id      = u.id
+LEFT JOIN anamnesis a       ON es.id          = a.subscribed_id
+LEFT JOIN (
+    SELECT payment_id, payer_email, payment_status, updated_at
+    FROM transactions
+    WHERE (payment_id, updated_at) IN (
+        SELECT payment_id, MAX(updated_at)
+        FROM transactions
+        GROUP BY payment_id
+    )
+) t ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+ORDER BY s.scheduled_at DESC";
 
         return $this->conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
