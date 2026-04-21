@@ -19,27 +19,14 @@ class RegistrationController {
     /**
      * POST /api/register/subscribers
      *
-     * Finaliza a inscrição após o pagamento já ter sido aprovado pelo webhook.
+     * Finaliza a inscrição após pagamento aprovado pelo webhook.
      *
-     * O frontend envia:
-     *   payment_id         — ID do pagamento aprovado pelo MP
-     *   schedule_id        — ID da agenda escolhida
-     *   student_full_name  — nome completo
-     *   student_email      — e-mail (mesmo usado no checkout)
-     *   student_phone      — telefone
-     *   activity_professional, neighborhood, city — detalhes
-     *   course_reason, who_recomended, is_medium,
-     *   religion, religion_mention, is_tule_member, first_time — anamnese
-     *
-     * O que este método faz (e SOMENTE isso):
-     *   1. Cria ou recupera a pessoa em `persons` + `person_details`
-     *   2. Atualiza person_id em `transactions` e `events_subscribed`
-     *   3. Cria a ficha de anamnese em `anamnesis`
-     *
-     * NÃO mexe em vagas (já decrementado pelo webhook).
-     * NÃO insere em events_subscribed (já feito pelo webhook).
+     * O que faz:
+     *  1. Cria ou recupera pessoa em persons + person_details
+     *  2. Atualiza person_id em transactions e events_subscribed
+     *  3. Cria anamnese
+     *  4. Atualiza events_subscribed.status → 'confirmed'
      */
-    
     public function create(Request $request, Response $response) {
         $data = $request->getParsedBody() ?? [];
 
@@ -60,10 +47,10 @@ class RegistrationController {
             // 1. Cria ou recupera a pessoa (upsert por e-mail)
             $personId = $personModel->saveCompleteRegistration($data);
 
-            // 2. Liga o person_id ao pagamento já aprovado
+            // 2. Liga person_id ao pagamento já aprovado
             $transactionModel->linkPersonToPayment($data['payment_id'], $personId);
 
-            // 3. Busca o events_subscribed criado pelo webhook para criar a anamnese
+            // 3. Busca o events_subscribed criado pelo webhook
             $stmt = $db->prepare("
                 SELECT id FROM events_subscribed
                 WHERE payment_id = :payid
@@ -78,6 +65,9 @@ class RegistrationController {
 
             // 4. Cria a ficha de anamnese
             $personModel->createAnamnesis($subscription['id'], $data);
+
+            // 5. Atualiza events_subscribed para 'confirmed'
+            $transactionModel->confirmSubscription($data['payment_id']);
 
             $db->commit();
 

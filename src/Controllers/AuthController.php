@@ -76,21 +76,11 @@ class AuthController {
         $data = $request->getParsedBody();
         $email = $data['email'] ?? null;
         $nome = $data['nome'] ?? 'Cliente';
-        $emailTeste = "teste_user_2904943887590020914@testeuser.com"; // Seu e-mail VIP
+
 
         if (!$email) {
             return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "E-mail é obrigatório"], 400);
         }
-
-        // --- LOGICA HIBRIDA ---
-        if ($email === $emailTeste) {
-            return $this->jsonResponse($response, [
-                "status" => "sucesso", 
-                "mensagem" => "Modo Teste: Verificação OTP pulada.",
-                "is_test" => true
-            ]);
-        }
-        // ----------------------
 
         $code = $this->personModel->createValidationCode($email, $data['telefone'] ?? '');
         

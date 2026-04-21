@@ -62,17 +62,14 @@ class Person extends BaseModel {
     public function createAnamnesis(int $subscribedId, array $data): void {
         $this->conn->prepare("
             INSERT INTO anamnesis
-                (subscribed_id, course_reason, who_recomended, is_medium,
-                 religion, religion_mention, is_tule_member, first_time)
+                (subscribed_id, course_reason, who_recomended, is_medium, religion_mention, is_tule_member, first_time)
             VALUES
-                (:subid, :reason, :who, :medium,
-                 :religion, :rel_mention, :tule, :first)
+                (:subid, :reason, :who, :medium, :rel_mention, :tule, :first)
         ")->execute([
             ':subid'       => $subscribedId,
             ':reason'      => $data['course_reason']      ?? null,
             ':who'         => $data['who_recomended']     ?? null,
             ':medium'      => $this->toBool($data['is_medium']      ?? 0),
-            ':religion'    => $this->toBool($data['religion']       ?? 0),
             ':rel_mention' => $data['religion_mention']   ?? null,
             ':tule'        => $this->toBool($data['is_tule_member'] ?? 0),
             ':first'       => $this->toBool($data['first_time']     ?? 0),
@@ -227,7 +224,6 @@ class Person extends BaseModel {
                     a.who_recomended,
                     a.religion_mention,
                     a.is_medium,
-                    a.religion,
                     a.is_tule_member,
                     a.first_time,
                     t.payer_email,

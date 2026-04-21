@@ -12,7 +12,7 @@ class Transaction extends BaseModel {
     public function getEventDetailsBySchedule($scheduleId) {
         $sql = "SELECT e.name, e.price, et.name AS type_name
                 FROM schedules s
-                JOIN events e      ON s.event_id      = e.id
+                JOIN events e       ON s.event_id      = e.id
                 JOIN event_types et ON s.event_type_id = et.id
                 WHERE s.id = :sid LIMIT 1";
         $stmt = $this->conn->prepare($sql);
@@ -21,15 +21,69 @@ class Transaction extends BaseModel {
     }
 
     /**
+     * Busca transação PENDING para email + schedule
+     */
+    public function findPendingByEmailAndSchedule($email, $scheduleId) {
+        $stmt = $this->conn->prepare("
+            SELECT * FROM transactions
+            WHERE payer_email    = :email
+              AND schedule_id    = :sid
+              AND payment_status = 'pending'
+            LIMIT 1
+        ");
+        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Busca transação APPROVED para email + schedule.
+     * Retorna também o status da inscrição em events_subscribed.
+     *
+     * subscription_status possíveis:
+     *   'pending'   → pagou mas ainda não preencheu o formulário
+     *   'confirmed' → inscrição totalmente concluída
+     *   null        → events_subscribed ainda não criado (não deveria acontecer)
+     */
+    public function findApprovedByEmailAndSchedule($email, $scheduleId) {
+        $stmt = $this->conn->prepare("
+            SELECT t.*, es.status AS subscription_status
+            FROM transactions t
+            LEFT JOIN events_subscribed es ON es.payment_id = t.payment_id
+            WHERE t.payer_email    = :email
+              AND t.schedule_id    = :sid
+              AND t.payment_status = 'approved'
+            LIMIT 1
+        ");
+        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Reutiliza transação pending existente com novo external_reference
+     */
+    public function reuseExistingPendingTransaction($existingExternalRef, $newExternalRef) {
+        $stmt = $this->conn->prepare("
+            UPDATE transactions
+            SET external_reference = :newRef,
+                preference_id      = NULL,
+                updated_at         = NOW()
+            WHERE external_reference = :oldRef
+              AND payment_status     = 'pending'
+        ");
+        return $stmt->execute([':newRef' => $newExternalRef, ':oldRef' => $existingExternalRef]);
+    }
+
+    /**
      * Grava transação pendente no momento do checkout.
-     * person_id pode ser null — será preenchido após o formulário de inscrição.
+     * person_id pode ser null — será preenchido após o formulário.
      */
     public function createPendingTransaction($scheduleId, $personId, $email, $amount, $externalReference) {
-        $sql = "INSERT INTO transactions
-                    (schedule_id, person_id, payer_email, external_reference, amount, payment_status)
-                VALUES
-                    (:sid, :pid, :email, :ref, :amount, 'pending')";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->conn->prepare("
+            INSERT INTO transactions
+                (schedule_id, person_id, payer_email, external_reference, amount, payment_status)
+            VALUES
+                (:sid, :pid, :email, :ref, :amount, 'pending')
+        ");
         return $stmt->execute([
             ':sid'    => $scheduleId,
             ':pid'    => $personId ?: null,
@@ -43,70 +97,78 @@ class Transaction extends BaseModel {
      * Atualiza o preference_id retornado pelo Mercado Pago
      */
     public function updatePreferenceId($externalReference, $preferenceId) {
-        $sql = "UPDATE transactions SET preference_id = :pref WHERE external_reference = :ref";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->conn->prepare("
+            UPDATE transactions SET preference_id = :pref WHERE external_reference = :ref
+        ");
         return $stmt->execute([':pref' => $preferenceId, ':ref' => $externalReference]);
     }
 
     /**
-     * Confirmação atômica chamada pelo webhook do MP.
+     * Atualiza payment_id e payment_status para qualquer status recebido do MP.
+     * Sem condição de status — sempre grava independente do valor atual.
+     */
+    public function updatePaymentStatus($paymentId, $externalReference, $status): void {
+        $this->conn->prepare("
+            UPDATE transactions
+            SET payment_id     = :pid,
+                payment_status = :status,
+                updated_at     = NOW()
+            WHERE external_reference = :ref
+        ")->execute([
+            ':pid'    => $paymentId,
+            ':status' => $status,
+            ':ref'    => $externalReference,
+        ]);
+    }
+
+    /**
+     * Chamado pelo webhook quando status = approved.
      *
-     * 1. Aprova a transaction (pending → approved) e grava payment_id
-     * 2. Insere em events_subscribed (person_id pode ser null aqui — será atualizado no form)
-     * 3. Decrementa vaga em schedules
+     * 1. Insere em events_subscribed com status 'pending' e payment_id preenchido
+     * 2. Decrementa vaga em schedules
      *
-     * Idempotente: se o webhook chegar duplicado o UPDATE não encontra 'pending' e retorna false.
+     * Idempotente: se o payment_id já existir em events_subscribed não processa de novo.
      */
     public function confirmPayment($paymentId, $externalReference) {
         try {
             $this->conn->beginTransaction();
 
-            // 1. Aprova a transação
-            $stmt = $this->conn->prepare("
-                UPDATE transactions
-                SET payment_status = 'approved',
-                    payment_id     = :pid,
-                    updated_at     = NOW()
-                WHERE external_reference = :ref
-                  AND payment_status     = 'pending'
+            // Verifica se já foi processado (idempotência)
+            $exists = $this->conn->prepare("
+                SELECT id FROM events_subscribed WHERE payment_id = :payid LIMIT 1
             ");
-            $stmt->execute([':pid' => $paymentId, ':ref' => $externalReference]);
-
-            if ($stmt->rowCount() === 0) {
-                // Webhook duplicado ou já processado — não é erro
+            $exists->execute([':payid' => $paymentId]);
+            if ($exists->fetch()) {
                 $this->conn->rollBack();
                 return false;
             }
 
             // Recupera person_id e schedule_id
             $info = $this->conn->prepare("
-                SELECT person_id, schedule_id
-                FROM transactions
-                WHERE external_reference = :ref
-                LIMIT 1
+                SELECT person_id, schedule_id FROM transactions
+                WHERE external_reference = :ref LIMIT 1
             ");
             $info->execute([':ref' => $externalReference]);
             $tx = $info->fetch(PDO::FETCH_ASSOC);
 
             if (!$tx) {
-                throw new Exception("Transação não encontrada após update: {$externalReference}");
+                throw new Exception("Transação não encontrada: {$externalReference}");
             }
 
-            // 2. Insere em events_subscribed
-            //    payment_id como VARCHAR bate com o schema (events_subscribed.payment_id varchar 100)
+            // Insere em events_subscribed com status 'pending'
+            // → será atualizado para 'confirmed' ao concluir o formulário
             $this->conn->prepare("
                 INSERT INTO events_subscribed (person_id, schedule_id, payment_id, status)
-                VALUES (:pid, :sid, :payid, 'confirmed')
+                VALUES (:pid, :sid, :payid, 'pending')
             ")->execute([
-                ':pid'   => $tx['person_id'],   // pode ser null — form ainda não foi preenchido
+                ':pid'   => $tx['person_id'],
                 ':sid'   => $tx['schedule_id'],
                 ':payid' => $paymentId,
             ]);
 
-            // 3. Decrementa vaga
+            // Decrementa vaga
             $stmtVaga = $this->conn->prepare("
-                UPDATE schedules
-                SET vacancies = vacancies - 1
+                UPDATE schedules SET vacancies = vacancies - 1
                 WHERE id = :sid AND vacancies > 0
             ");
             $stmtVaga->execute([':sid' => $tx['schedule_id']]);
@@ -126,8 +188,19 @@ class Transaction extends BaseModel {
     }
 
     /**
-     * Atualiza person_id na transaction e em events_subscribed após o form de inscrição.
-     * Chamado por Registration::completeRegistration depois de criar/identificar a pessoa.
+     * Atualiza events_subscribed para 'confirmed' após formulário preenchido.
+     * Chamado pelo RegistrationController::create.
+     */
+    public function confirmSubscription($paymentId): void {
+        $this->conn->prepare("
+            UPDATE events_subscribed
+            SET status = 'confirmed'
+            WHERE payment_id = :payid
+        ")->execute([':payid' => $paymentId]);
+    }
+
+    /**
+     * Atualiza person_id na transaction e em events_subscribed após o form.
      */
     public function linkPersonToPayment($paymentId, $personId) {
         $this->conn->prepare("
@@ -141,7 +214,6 @@ class Transaction extends BaseModel {
 
     /**
      * Retorna transações aprovadas sem inscrição finalizada para um e-mail.
-     * Usado no frontend pós-pagamento para exibir o formulário.
      */
     public function getPaidPendingRegistrations($email) {
         $sql = "SELECT t.payment_id, t.schedule_id, t.person_id,
@@ -164,16 +236,17 @@ class Transaction extends BaseModel {
     }
 
     /**
-     * Verifica se já existe pagamento aprovado para email + schedule
+     * Sanitização: deleta transações 'pending' expiradas.
+     * Tempo configurável via PENDING_EXPIRY_MINUTES no .env (padrão 60min).
      */
-    public function verifyPaidTransaction($email, $scheduleId) {
-        $sql = "SELECT id FROM transactions
-                WHERE payer_email = :email
-                  AND schedule_id = :sid
-                  AND payment_status = 'approved'
-                LIMIT 1";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
-        return (bool) $stmt->fetch();
+    public function deleteStalePendingTransactions(): int {
+        $minutes = (int) (1 ?? 60);
+        $stmt = $this->conn->prepare("
+            DELETE FROM transactions
+            WHERE payment_status <> 'approved'
+              AND created_at    <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
+        ");
+        $stmt->execute([':minutes' => $minutes]);
+        return $stmt->rowCount();
     }
 }
