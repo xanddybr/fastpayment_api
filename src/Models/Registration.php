@@ -38,28 +38,6 @@ class Registration extends BaseModel {
     }
 
     /**
-     * Histórico financeiro para o painel admin.
-     * Usa a tabela transactions (fonte da verdade financeira).
-     */
-    public function getPaymentHistory() {
-        $sql = "SELECT
-                    t.payment_id,
-                    t.payer_email,
-                    t.amount,
-                    t.payment_status,
-                    t.created_at        AS payment_date,
-                    e.name              AS event_name,
-                    s.scheduled_at      AS event_date
-                FROM transactions t
-                LEFT JOIN schedules s ON t.schedule_id = s.id
-                LEFT JOIN events e    ON s.event_id    = e.id
-                WHERE t.payment_status = 'approved'
-                ORDER BY t.created_at DESC";
-
-        return $this->conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    /**
      * Receita total acumulada (pagamentos aprovados).
      */
     public function getTotalRevenue() {

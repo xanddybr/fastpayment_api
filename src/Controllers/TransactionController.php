@@ -37,7 +37,7 @@ class TransactionController {
             return $this->jsonResponse($response, ['error' => 'email e schedule_id são obrigatórios'], 400);
         }
 
-        $urlBase     = "https://fc7f-2804-d41-ec16-4800-d8cd-8cf1-3950-cb49.ngrok-free.app";
+        $urlBase     = rtrim($_ENV['NGROK_URL'] ?? '', '/');
         $externalRef = 'FP-' . time() . '-' . $scheduleId;
 
         try {
@@ -55,23 +55,23 @@ class TransactionController {
                     $subStatus = $approved['subscription_status'] ?? null;
 
                     // approved + confirmed → já comprou e inscreveu
-                   if ($subStatus === 'confirmed') {
-    return $this->jsonResponse($response, [
-        'error'                  => 'ja_inscrito',
-        'mensagem'               => 'Você já realizou a compra e a inscrição para este evento. Deseja realizar outra?',
-        'pode_comprar_novamente' => true,
-    ], 409);
-}
+                    if ($subStatus === 'confirmed') {
+                        return $this->jsonResponse($response, [
+                            'error'                  => 'ja_inscrito',
+                            'mensagem'               => 'Você já realizou a compra e a inscrição para este evento. Deseja realizar outra?',
+                            'pode_comprar_novamente' => true,
+                        ], 409);
+                    }
 
-// approved + pending ou sem inscrição → redireciona para o formulário
-if ($subStatus === 'pending' || $subStatus === 'no_subscription') {
-    return $this->jsonResponse($response, [
-        'error'       => 'inscricao_pendente',
-        'mensagem'    => 'Você já realizou o pagamento. Por favor, conclua sua inscrição.',
-        'payment_id'  => $approved['payment_id'],
-        'schedule_id' => $scheduleId,
-    ], 402);
-}
+                    // approved + pending → pagou mas não concluiu o formulário
+                    if ($subStatus === 'pending') {
+                        return $this->jsonResponse($response, [
+                            'error'       => 'inscricao_pendente',
+                            'mensagem'    => 'Você já realizou o pagamento. Por favor, conclua sua inscrição.',
+                            'payment_id'  => $approved['payment_id'],
+                            'schedule_id' => $scheduleId,
+                        ], 402);
+                    }
                 }
             }
 
@@ -115,9 +115,6 @@ if ($subStatus === 'pending' || $subStatus === 'no_subscription') {
             ];
 
             $mpResponse = $this->callMercadoPagoAPI($_ENV['MP_ACCESS_TOKEN'], $preferenceData);
-
-            error_log("MP_PREFERENCE_REQUEST: " . json_encode($preferenceData));
-            error_log("MP_PREFERENCE_RESPONSE: " . json_encode($mpResponse));
 
             if (!isset($mpResponse['id'])) {
                 throw new Exception('Erro ao gerar preferência no Mercado Pago.');

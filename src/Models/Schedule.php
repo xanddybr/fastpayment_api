@@ -94,13 +94,22 @@ class Schedule extends BaseModel {
      * assim o admin ainda enxerga o registro no painel.
      */
     public function closeExpiredSchedules() {
-        $stmt = $this->conn->prepare("
+          // Fecha os que já passaram
+        $this->conn->prepare("
             UPDATE schedules
             SET status = 'unavailable'
             WHERE scheduled_at <= NOW()
-              AND status = 'available'
-        ");
-        return $stmt->execute();
+            AND status = 'available'
+        ")->execute();
+
+        // Reabre os que são futuros e têm vagas
+        $this->conn->prepare("
+            UPDATE schedules
+            SET status = 'available'
+            WHERE scheduled_at > NOW()
+            AND status = 'unavailable'
+            AND vacancies > 0
+        ")->execute();
     }
 
     public function delete($id) {

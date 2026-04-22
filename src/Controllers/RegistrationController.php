@@ -114,22 +114,6 @@ class RegistrationController {
         }
     }
 
-    /**
-     * GET /financial/history — Histórico de pagamentos (admin)
-     */
-    public function paymentHistory(Request $request, Response $response) {
-        try {
-            $history = $this->registrationModel->getPaymentHistory();
-            return $this->jsonResponse($response, [
-                'status' => 'sucesso',
-                'total'  => count($history),
-                'data'   => $history,
-            ]);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
-        }
-    }
-
     // -------------------------------------------------------------------------
     // Helper
     // -------------------------------------------------------------------------
