@@ -235,16 +235,14 @@ class Transaction extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Sanitização: deleta transações 'pending' expiradas.
-     * Tempo configurável via PENDING_EXPIRY_MINUTES no .env (padrão 60min).
-     */
+
     public function deleteStalePendingTransactions(): int {
+        $minutes = (int) (1); // padrão 60min
         $stmt = $this->conn->prepare("
             DELETE FROM transactions
             WHERE payment_status <> 'approved'
-        ");
-        $stmt->execute();
+            AND created_at    <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)");
+        $stmt->execute([':minutes' => $minutes]);
         return $stmt->rowCount();
     }
 }

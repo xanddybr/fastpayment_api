@@ -85,32 +85,17 @@ class Schedule extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Fecha agendamentos que já passaram da hora de início.
-     * Chamado pelo cron (/api/cron/schedules-cleanup) e antes de cada listagem.
-     *
-     * Não reabre agendamentos — status só vai de 'available' → 'unavailable'.
-     * Vagas zeradas são tratadas no getAvailable (filtro vacancies > 0),
-     * assim o admin ainda enxerga o registro no painel.
-     */
+   
     public function closeExpiredSchedules() {
-          // Fecha os que já passaram
         $this->conn->prepare("
             UPDATE schedules
-            SET status = 'unavailable'
+            SET status    = 'unavailable',
+                vacancies = 0              
             WHERE scheduled_at <= NOW()
             AND status = 'available'
         ")->execute();
-
-        // Reabre os que são futuros e têm vagas
-        $this->conn->prepare("
-            UPDATE schedules
-            SET status = 'available'
-            WHERE scheduled_at > NOW()
-            AND status = 'unavailable'
-            AND vacancies > 0
-        ")->execute();
     }
+    
 
     public function delete($id) {
         $stmt = $this->conn->prepare("DELETE FROM schedules WHERE id = :id");
