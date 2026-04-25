@@ -80,6 +80,8 @@
     $app->get('/api/cron/transactions-cleanup', \App\Controllers\TransactionController::class . ':cleanupPendingTransactions');
     $app->post('/api/check-payment', \App\Controllers\TransactionController::class . ':checkPayment');
     $app->post('/api/register/subscribers', \App\Controllers\RegistrationController::class . ':create');
+    $app->get('/api/cron/codes-cleanup', \App\Controllers\AuthController::class . ':cleanupCodes');
+    
 
     // --- 5. ROTAS ADMINISTRATIVAS (PROTEGIDAS) ---
 

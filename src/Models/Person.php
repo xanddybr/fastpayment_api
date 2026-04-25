@@ -165,48 +165,62 @@ class Person extends BaseModel {
     // -------------------------------------------------------------------------
 
     public function createValidationCode($email, $phone = null) {
+        // Marks previous codes as 'expirado' before creating new one
         $this->conn->prepare("
-            UPDATE registered_codes SET status = 'expirado'
-            WHERE email = :email AND status = 'pendente'
+            UPDATE registered_codes 
+            SET status = 'expirado' 
+            WHERE email = :email 
+            AND status = 'pendente'
         ")->execute([':email' => $email]);
 
-        $code      = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+5 minutes'));
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
+        // ✅ Inserts with status 'pendente' — no expires_at
         $this->conn->prepare("
-            INSERT INTO registered_codes (email, code, expires_at, status)
-            VALUES (:email, :code, :expires, 'pendente')
-        ")->execute([':email' => $email, ':code' => $code, ':expires' => $expiresAt]);
+            INSERT INTO registered_codes (email, code, status)
+            VALUES (:email, :code, 'pendente')
+        ")->execute([
+            ':email' => $email,
+            ':code'  => $code,
+        ]);
 
         return $code;
     }
 
+    public function deleteValidatedCodes(): int {
+        $stmt = $this->conn->prepare("
+            DELETE FROM registered_codes
+            WHERE status = 'expirado'
+        ");
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+        
     public function validateOTP($email, $code) {
         $stmt = $this->conn->prepare("
             SELECT id FROM registered_codes
-            WHERE email = :email AND code = :code
-              AND status = 'pendente' AND expires_at > NOW()
+            WHERE email      = :email
+            AND code       = :code
+            AND status     = 'pendente' 
             LIMIT 1
         ");
         $stmt->execute([':email' => $email, ':code' => $code]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($result) {
+            // ✅ Mark as 'expirado' after validation
             $this->conn->prepare("
-                UPDATE registered_codes SET status = 'validado' WHERE id = :id
+                UPDATE registered_codes SET status = 'expirado' WHERE id = :id
             ")->execute([':id' => $result['id']]);
+
             return true;
         }
+
         return false;
     }
 
-    // -------------------------------------------------------------------------
-    // Relatórios
-    // -------------------------------------------------------------------------
-
     public function getAllSubscribers() {
         $sql = "SELECT
-            -- Pessoa com fallback para quando person_id ainda é null
             p.id                                                            AS person_id,
             COALESCE(p.full_name, t.payer_email, 'Aguardando inscrição')   AS full_name,
             COALESCE(p.email,     t.payer_email, '-')                      AS email,
@@ -214,22 +228,18 @@ class Person extends BaseModel {
             pd.activity_professional,
             pd.city,
             pd.neighborhood,
-            -- Inscrição
             es.id                       AS subscribed_id,
             es.created_at,
             es.status                   AS enrollment_status,
-            -- Evento
             e.name                      AS event_name,
             e.price                     AS valor_evento,
             et.name                     AS type_name,
             u.name                      AS unit_name,
             s.scheduled_at              AS event_date,
-            -- Pagamento
             es.payment_id               AS transacao_gateway,
             t.payer_email,
             t.payment_status,
             t.updated_at,
-            -- Anamnese
             a.course_reason,
             a.who_recomended,
             a.religion_mention,
@@ -253,6 +263,7 @@ class Person extends BaseModel {
                 GROUP BY payment_id
             )
         ) t ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+        WHERE es.person_id IS NOT NULL
         ORDER BY es.created_at DESC";
 
         return $this->conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);

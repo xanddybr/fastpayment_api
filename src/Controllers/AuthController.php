@@ -92,6 +92,20 @@ class AuthController {
         return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Falha ao gerar código."], 500);
     }
 
+    public function cleanupCodes(Request $request, Response $response) {
+        try {
+            $deleted = $this->personModel->deleteValidatedCodes();
+            error_log("CLEANUP CODES: {$deleted} código(s) deletado(s)");
+            return $this->jsonResponse($response, [
+                'success' => true,
+                'deleted' => $deleted,
+                'message' => "{$deleted} código(s) validado(s)/expirado(s) removido(s).",
+            ]);
+        } catch (\Exception $e) {
+            return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
+        }
+    }
+
     // Auxiliares para manter o Controller limpo
     private function createSession($user) {
         if (session_status() === PHP_SESSION_NONE) session_start();

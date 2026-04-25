@@ -240,13 +240,11 @@ class Transaction extends BaseModel {
      * Tempo configurável via PENDING_EXPIRY_MINUTES no .env (padrão 60min).
      */
     public function deleteStalePendingTransactions(): int {
-        $minutes = (int) (1 ?? 60);
         $stmt = $this->conn->prepare("
             DELETE FROM transactions
-            WHERE payment_status = 'pending'
-              AND created_at    <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
+            WHERE payment_status <> 'approved'
         ");
-        $stmt->execute([':minutes' => $minutes]);
+        $stmt->execute();
         return $stmt->rowCount();
     }
 }
