@@ -37,7 +37,7 @@ class TransactionController {
             return $this->jsonResponse($response, ['error' => 'email e schedule_id são obrigatórios'], 400);
         }
 
-        $urlBase     = rtrim($_ENV['DB_NGROKURL'] ?? '', '/');
+        $urlBase     = rtrim('https://12f5-2804-d41-ec16-4800-774-1ca6-2f17-d056.ngrok-free.app');
         $externalRef = 'FP-' . time() . '-' . $scheduleId;
 
         try {

@@ -58,20 +58,22 @@ class Transaction extends BaseModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Reutiliza transação pending existente com novo external_reference
-     */
-    public function reuseExistingPendingTransaction($existingExternalRef, $newExternalRef) {
-        $stmt = $this->conn->prepare("
-            UPDATE transactions
-            SET external_reference = :newRef,
-                preference_id      = NULL,
-                updated_at         = NOW()
-            WHERE external_reference = :oldRef
-              AND payment_status     = 'pending'
-        ");
-        return $stmt->execute([':newRef' => $newExternalRef, ':oldRef' => $existingExternalRef]);
-    }
+    public function reuseExistingPendingTransaction($existingExternalRef, $newExternalRef, $personId = null) {
+    $stmt = $this->conn->prepare("
+        UPDATE transactions
+        SET external_reference = :newRef,
+            person_id          = :pid,
+            preference_id      = NULL,
+            updated_at         = NOW()
+        WHERE external_reference = :oldRef
+          AND payment_status     = 'pending'
+    ");
+    return $stmt->execute([
+        ':newRef' => $newExternalRef,
+        ':oldRef' => $existingExternalRef,
+        ':pid'    => $personId,
+    ]);
+}       
 
     /**
      * Grava transação pendente no momento do checkout.
@@ -237,12 +239,30 @@ class Transaction extends BaseModel {
 
 
     public function deleteStalePendingTransactions(): int {
-        $minutes = (int) (1); // padrão 60min
+        $minutes = (int) (1 ?? 60);
+
         $stmt = $this->conn->prepare("
             DELETE FROM transactions
             WHERE payment_status <> 'approved'
-            AND created_at    <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)");
+            AND created_at <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
+        ");
         $stmt->execute([':minutes' => $minutes]);
-        return $stmt->rowCount();
+        $deleted = $stmt->rowCount();
+
+        // ✅ Delete temporary persons with no approved transaction
+        $this->conn->prepare("
+            DELETE FROM persons
+            WHERE status = 'pending'
+            AND id NOT IN (
+                SELECT DISTINCT person_id
+                FROM transactions
+                WHERE payment_status = 'approved'
+                    AND person_id IS NOT NULL
+            )
+        ")->execute();
+
+        return $deleted;
     }
+
+    
 }

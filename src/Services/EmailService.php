@@ -3,17 +3,17 @@ namespace App\Services;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+use App\Services\Templates\OtpEmailTemplate;
 
 class EmailService {
-    
+
     /**
-     * Envia o código de validação (OTP)
+     * Sends the OTP verification email using the Mistura de Luz template.
      */
     public static function sendOTP($toEmail, $toName, $code) {
         $mail = new PHPMailer(true);
         try {
-            // Configurações do Servidor (Centralizadas aqui!)
-            $mail->CharSet = 'UTF-8';
+            $mail->CharSet    = 'UTF-8';
             $mail->isSMTP();
             $mail->Host       = 'smtp.hostinger.com';
             $mail->SMTPAuth   = true;
@@ -22,18 +22,21 @@ class EmailService {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port       = 465;
 
-            // Destinatários
             $mail->setFrom('contato@misturadeluz.com', 'Mistura de Luz');
             $mail->addAddress($toEmail, $toName);
 
-            // Conteúdo
             $mail->isHTML(true);
-            $mail->Subject = "Seu codigo de acesso: $code";
-            $mail->Body    = "Olá $toName, seu código de validação é: <b>$code</b>. <br>Válido por 5 minutos.";
-            
+            $mail->Subject = "🔐 Seu código de verificação — Mistura de Luz";
+
+            // ✅ REQ-009: Beautiful HTML template
+            $mail->Body    = OtpEmailTemplate::render($toName, $code);
+
+            // Plain text fallback for email clients that don't support HTML
+            $mail->AltBody = "Olá {$toName}, seu código de verificação é: {$code}. Válido por 5 minutos. Se não solicitou este código, ignore este e-mail.";
+
             return $mail->send();
         } catch (Exception $e) {
-            // Aqui você poderia logar o erro: error_log($e->getMessage());
+            error_log("Erro ao enviar OTP para {$toEmail}: " . $e->getMessage());
             return false;
         }
     }
@@ -41,7 +44,6 @@ class EmailService {
     public static function sendPaymentConfirmation($payerEmail, $eventData) {
         $mail = new PHPMailer(true);
         try {
-            // Configurações do Servidor
             $mail->isSMTP();
             $mail->Host       = 'smtp.hostinger.com';
             $mail->SMTPAuth   = true;
@@ -52,7 +54,7 @@ class EmailService {
             $mail->setFrom('contato@misturadeluz.com', 'Mistura de Luz');
             $mail->isHTML(true);
 
-            // --- 1. E-MAIL PARA O CLIENTE ---
+            // Email to client
             $mail->addAddress($payerEmail);
             $mail->Subject = "Pagamento Confirmado: " . $eventData['name'];
             $mail->Body    = "
@@ -61,13 +63,13 @@ class EmailService {
                 <p><b>Data:</b> " . date('d/m/Y H:i', strtotime($eventData['scheduled_at'])) . "h</p>
                 <p><b>Local:</b> {$eventData['unit_name']}</p>
                 <hr>
-                <p><b>IMPORTANTE:</b> Para concluir sua participação, você deve preencher sua ficha de inscrição clicando no link abaixo:</p>
-                <a href='https://misturadeluz.com/agenda' style='background:#7c3aed; color:white; padding:10px 20px; text-decoration:none; border-radius:10px;'>Concluir Inscrição Agora</a>
+                <p><b>IMPORTANTE:</b> Para concluir sua participação, preencha sua ficha de inscrição:</p>
+                <a href='https://misturadeluz.com/beta' style='background:#7c3aed;color:white;padding:10px 20px;text-decoration:none;border-radius:10px;'>Concluir Inscrição Agora</a>
             ";
             $mail->send();
 
-            // --- 2. E-MAIL PARA O VENDEDOR (Admin) ---
-            $mail->clearAddresses(); // Limpa o destinatário anterior
+            // Email to admin
+            $mail->clearAddresses();
             $mail->addAddress('contato@misturadeluz.com', 'Admin Mistura');
             $mail->Subject = "NOVA VENDA: " . $eventData['name'];
             $mail->Body    = "

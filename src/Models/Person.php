@@ -187,6 +187,18 @@ class Person extends BaseModel {
         return $code;
     }
 
+    public function createTemporaryPerson(string $email, string $fullName): int {
+        $this->conn->prepare("
+            INSERT INTO persons (full_name, email, status, type_person_id)
+            VALUES (:name, :email, 'pending', 2)
+            ON DUPLICATE KEY UPDATE
+                id        = LAST_INSERT_ID(id),
+                full_name = VALUES(full_name)
+        ")->execute([':name' => $fullName, ':email' => $email]);
+
+        return (int) $this->conn->lastInsertId();
+    }
+
     public function deleteValidatedCodes(): int {
         $stmt = $this->conn->prepare("
             DELETE FROM registered_codes
@@ -221,50 +233,50 @@ class Person extends BaseModel {
 
     public function getAllSubscribers() {
         $sql = "SELECT
-            p.id                                                            AS person_id,
-            COALESCE(p.full_name, t.payer_email, 'Aguardando inscrição')   AS full_name,
-            COALESCE(p.email,     t.payer_email, '-')                      AS email,
-            pd.phone,
-            pd.activity_professional,
-            pd.city,
-            pd.neighborhood,
-            es.id                       AS subscribed_id,
-            es.created_at,
-            es.status                   AS enrollment_status,
-            e.name                      AS event_name,
-            e.price                     AS valor_evento,
-            et.name                     AS type_name,
-            u.name                      AS unit_name,
-            s.scheduled_at              AS event_date,
-            es.payment_id               AS transacao_gateway,
-            t.payer_email,
-            t.payment_status,
-            t.updated_at,
-            a.course_reason,
-            a.who_recomended,
-            a.religion_mention,
-            a.is_medium,
-            a.is_tule_member,
-            a.first_time
-        FROM events_subscribed es
-        LEFT JOIN persons p         ON es.person_id    = p.id
-        LEFT JOIN person_details pd ON pd.person_id    = p.id
-        INNER JOIN schedules s      ON es.schedule_id  = s.id
-        INNER JOIN events e         ON s.event_id      = e.id
-        INNER JOIN event_types et   ON s.event_type_id = et.id
-        INNER JOIN units u          ON s.unit_id       = u.id
-        LEFT JOIN anamnesis a       ON es.id           = a.subscribed_id
-        LEFT JOIN (
-            SELECT payment_id, payer_email, payment_status, updated_at
-            FROM transactions
-            WHERE (payment_id, updated_at) IN (
-                SELECT payment_id, MAX(updated_at)
-                FROM transactions
-                GROUP BY payment_id
-            )
-        ) t ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
-        WHERE es.person_id IS NOT NULL
-        ORDER BY es.created_at DESC";
+    p.id                                                            AS person_id,
+    COALESCE(p.full_name, t.payer_email, 'Aguardando inscrição')   AS full_name,
+    COALESCE(p.email,     t.payer_email, '-')                      AS email,
+    pd.phone,
+    pd.activity_professional,
+    pd.city,
+    pd.neighborhood,
+    es.id                       AS subscribed_id,
+    es.created_at,
+    es.status                   AS enrollment_status,
+    e.name                      AS event_name,
+    e.price                     AS valor_evento,
+    et.name                     AS type_name,
+    u.name                      AS unit_name,
+    s.scheduled_at              AS event_date,
+    es.payment_id               AS transacao_gateway,
+    t.payer_email,
+    t.payment_status,
+    t.created_at                AS createdPay,
+    a.course_reason,
+    a.who_recomended,
+    a.religion_mention,
+    a.is_medium,
+    a.is_tule_member,
+    a.first_time
+FROM events_subscribed es
+LEFT JOIN persons p         ON es.person_id    = p.id
+LEFT JOIN person_details pd ON pd.person_id    = p.id
+INNER JOIN schedules s      ON es.schedule_id  = s.id
+INNER JOIN events e         ON s.event_id      = e.id
+INNER JOIN event_types et   ON s.event_type_id = et.id
+INNER JOIN units u          ON s.unit_id       = u.id
+LEFT JOIN anamnesis a       ON es.id           = a.subscribed_id
+LEFT JOIN (
+    SELECT payment_id, payer_email, payment_status, updated_at, created_at
+    FROM transactions
+    WHERE (payment_id, updated_at) IN (
+        SELECT payment_id, MAX(updated_at)
+        FROM transactions
+        GROUP BY payment_id
+    )
+) t ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+WHERE es.person_id IS NOT NULL
+ORDER BY es.created_at DESC";
 
         return $this->conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
