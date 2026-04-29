@@ -13,27 +13,48 @@ class Person extends BaseModel {
      * ficam no RegistrationController e em createAnamnesis() abaixo.
      */
     public function saveCompleteRegistration(array $data): int {
-        // Campos aceitos com aliases flexíveis
+        // Accepted fields with flexible aliases
         $fullName = $data['student_full_name'] ?? ($data['full_name'] ?? null);
-        $email    = $data['student_email']     ?? ($data['email']     ?? null);
         $phone    = $data['student_phone']     ?? ($data['phone']     ?? null);
 
-        if (!$fullName || !$email) {
-            throw new Exception('Nome e e-mail são obrigatórios.');
+        if (!$fullName) {
+            throw new Exception('Nome é obrigatório.');
         }
 
-        // 1. Upsert em persons
+        if (empty($data['payment_id'])) {
+            throw new Exception('payment_id é obrigatório para vincular a pessoa.');
+        }
+
+        // ✅ Get email from existing person (linked via payment_id → transactions → persons)
+        $stmt = $this->conn->prepare("
+            SELECT p.email
+            FROM transactions t
+            INNER JOIN persons p ON t.person_id = p.id
+            WHERE t.payment_id = :payid
+            LIMIT 1
+        ");
+        $stmt->execute([':payid' => $data['payment_id']]);
+        $existing = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$existing) {
+            throw new Exception('Pagamento não vinculado a um cliente.');
+        }
+
+        $email = $existing['email'];
+
+        // 1. Upsert in persons — promotes 'pending' → 'active' and updates name
         $this->conn->prepare("
             INSERT INTO persons (full_name, email, status, type_person_id)
             VALUES (:name, :email, 'active', 2)
             ON DUPLICATE KEY UPDATE
-                id             = LAST_INSERT_ID(id),
-                full_name      = VALUES(full_name)
+                id        = LAST_INSERT_ID(id),
+                full_name = VALUES(full_name),
+                status    = 'active'
         ")->execute([':name' => $fullName, ':email' => $email]);
 
         $personId = (int) $this->conn->lastInsertId();
 
-        // 2. Upsert em person_details
+        // 2. Upsert in person_details
         $this->conn->prepare("
             INSERT INTO person_details (person_id, activity_professional, phone, neighborhood, city)
             VALUES (:pid, :prof, :phone, :neighborhood, :city)
@@ -233,9 +254,9 @@ class Person extends BaseModel {
 
     public function getAllSubscribers() {
         $sql = "SELECT
-    p.id                                                            AS person_id,
-    COALESCE(p.full_name, t.payer_email, 'Aguardando inscrição')   AS full_name,
-    COALESCE(p.email,     t.payer_email, '-')                      AS email,
+    p.id                        AS person_id,
+    COALESCE(p.full_name, 'Aguardando inscrição') AS full_name,
+    COALESCE(p.email, '-')      AS email,
     pd.phone,
     pd.activity_professional,
     pd.city,
@@ -249,7 +270,7 @@ class Person extends BaseModel {
     u.name                      AS unit_name,
     s.scheduled_at              AS event_date,
     es.payment_id               AS transacao_gateway,
-    t.payer_email,
+    p.email                     AS payer_email,    -- ✅ from persons
     t.payment_status,
     t.created_at                AS createdPay,
     a.course_reason,
@@ -267,7 +288,7 @@ INNER JOIN event_types et   ON s.event_type_id = et.id
 INNER JOIN units u          ON s.unit_id       = u.id
 LEFT JOIN anamnesis a       ON es.id           = a.subscribed_id
 LEFT JOIN (
-    SELECT payment_id, payer_email, payment_status, updated_at, created_at
+    SELECT payment_id, payment_status, updated_at, created_at
     FROM transactions
     WHERE (payment_id, updated_at) IN (
         SELECT payment_id, MAX(updated_at)

@@ -49,15 +49,14 @@ class OtpEmailTemplate {
                     <!-- HEADER -->
                     <tr>
                         <td align="center" style="padding:48px 40px 32px;">
-                            <img src="{$logoSrc}"
+                            <img src="https://beta.misturadeluz.com/beta/images/logo.png"
                                  alt="Mistura de Luz"
-                                 width="130"
-                                 style="display:block;margin:0 auto 20px auto;border-radius:50%;border:3px solid rgba(168,85,247,0.4);box-shadow:0 0 30px rgba(168,85,247,0.3);">
+                                 width="230"
+                                 style="display:block;margin:0 auto 20px auto;">
                             <h1 style="margin:0;font-size:28px;font-weight:400;color:#e9d5ff;letter-spacing:2px;font-style:italic;">
-                                Mistura de Luz
-                            </h1>
+                                
                             <p style="margin:4px 0 0;font-size:11px;color:#9333ea;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif;">
-                                Cursos e Terapias da Alma
+                               
                             </p>
                         </td>
                     </tr>

@@ -14,18 +14,7 @@ class TransactionController {
         $this->transactionModel = new TransactionModel();
     }
 
-    /**
-     * Gera a preferência no MP e grava/reutiliza transação.
-     *
-     * Regras antes de criar:
-     *  1. Sanitiza pendentes expirados automaticamente
-     *  2. approved + subscription confirmed → bloqueia, pergunta se quer nova compra
-     *  3. approved + subscription pending   → redireciona para o formulário
-     *  4. pending existente                 → reutiliza a linha
-     *  5. nada encontrado                   → cria normalmente
-     *
-     * force_new=true → ignora regras 2 e 3, cria nova compra diretamente
-     */
+    
     public function createPayment(Request $request, Response $response) {
         $data       = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
         $email      = $data['email']       ?? null;
@@ -37,7 +26,7 @@ class TransactionController {
             return $this->jsonResponse($response, ['error' => 'email e schedule_id são obrigatórios'], 400);
         }
 
-        $urlBase     = rtrim('https://12f5-2804-d41-ec16-4800-774-1ca6-2f17-d056.ngrok-free.app');
+        $urlBase     = rtrim('https://3df4-2804-d41-ec16-4800-91b8-1a9-c8f4-8ad9.ngrok-free.app');
         $externalRef = 'FP-' . time() . '-' . $scheduleId;
 
         try {
@@ -54,7 +43,6 @@ class TransactionController {
                 if ($approved) {
                     $subStatus = $approved['subscription_status'] ?? null;
 
-                    // approved + confirmed → já comprou e inscreveu
                     if ($subStatus === 'confirmed') {
                         return $this->jsonResponse($response, [
                             'error'                  => 'ja_inscrito',
@@ -63,7 +51,6 @@ class TransactionController {
                         ], 409);
                     }
 
-                    // approved + pending → pagou mas não concluiu o formulário
                     if ($subStatus === 'pending') {
                         return $this->jsonResponse($response, [
                             'error'       => 'inscricao_pendente',
@@ -75,12 +62,19 @@ class TransactionController {
                 }
             }
 
-            // 4. Pending existente → reutiliza
+            // ✅ REQ-008: Busca person_id da pessoa criada no validateCode
+            if (!$personId) {
+                $personId = $this->transactionModel->findPersonIdByEmail($email);
+                error_log("REQ-008: person_id buscado | id={$personId} email={$email}");
+            }
+
+            // 4. Pending existente → reutiliza (passando person_id)
             $pending = $this->transactionModel->findPendingByEmailAndSchedule($email, $scheduleId);
             if ($pending) {
                 $this->transactionModel->reuseExistingPendingTransaction(
                     $pending['external_reference'],
-                    $externalRef
+                    $externalRef,
+                    $personId
                 );
                 error_log("REUSE: pendente reutilizado | email={$email} schedule={$scheduleId}");
             }
@@ -92,10 +86,10 @@ class TransactionController {
             }
             $price = (float) $event['price'];
 
-            // Cria nova transação apenas se não havia pending
+            // Cria nova transação apenas se não havia pending — com person_id já preenchido
             if (!$pending) {
                 $this->transactionModel->createPendingTransaction(
-                    $scheduleId, $personId, $email, $price, $externalRef
+                    $scheduleId, $personId, $price, $externalRef
                 );
             }
 
@@ -129,12 +123,7 @@ class TransactionController {
         }
     }
 
-    /**
-     * Webhook do MP — trata formato novo e antigo.
-     *
-     * Para qualquer status: atualiza payment_id e payment_status na transaction.
-     * Se approved: insere events_subscribed com status 'pending' e decrementa vaga.
-     */
+ 
     public function webhook(Request $request, Response $response): Response {
         $body        = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
         $queryParams = $request->getQueryParams();

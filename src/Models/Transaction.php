@@ -25,10 +25,11 @@ class Transaction extends BaseModel {
      */
     public function findPendingByEmailAndSchedule($email, $scheduleId) {
         $stmt = $this->conn->prepare("
-            SELECT * FROM transactions
-            WHERE payer_email    = :email
-              AND schedule_id    = :sid
-              AND payment_status = 'pending'
+            SELECT t.* FROM transactions t
+            INNER JOIN persons p ON t.person_id = p.id
+            WHERE p.email          = :email
+            AND t.schedule_id    = :sid
+            AND t.payment_status = 'pending'
             LIMIT 1
         ");
         $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
@@ -46,12 +47,16 @@ class Transaction extends BaseModel {
      */
     public function findApprovedByEmailAndSchedule($email, $scheduleId) {
         $stmt = $this->conn->prepare("
-            SELECT t.*, es.status AS subscription_status
+            SELECT t.*,
+                COALESCE(es.status, 'no_subscription') AS subscription_status
             FROM transactions t
-            LEFT JOIN events_subscribed es ON es.payment_id = t.payment_id
-            WHERE t.payer_email    = :email
-              AND t.schedule_id    = :sid
-              AND t.payment_status = 'approved'
+            INNER JOIN persons p ON t.person_id = p.id
+            LEFT JOIN events_subscribed es 
+                ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+            WHERE p.email          = :email
+            AND t.schedule_id    = :sid
+            AND t.payment_status = 'approved'
+            ORDER BY t.updated_at DESC
             LIMIT 1
         ");
         $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
@@ -79,17 +84,14 @@ class Transaction extends BaseModel {
      * Grava transação pendente no momento do checkout.
      * person_id pode ser null — será preenchido após o formulário.
      */
-    public function createPendingTransaction($scheduleId, $personId, $email, $amount, $externalReference) {
+    public function createPendingTransaction($scheduleId, $personId, $amount, $externalReference) {
         $stmt = $this->conn->prepare("
-            INSERT INTO transactions
-                (schedule_id, person_id, payer_email, external_reference, amount, payment_status)
-            VALUES
-                (:sid, :pid, :email, :ref, :amount, 'pending')
+            INSERT INTO transactions (schedule_id, person_id, external_reference, amount, payment_status)
+            VALUES (:sid, :pid, :ref, :amount, 'pending')
         ");
         return $stmt->execute([
             ':sid'    => $scheduleId,
-            ':pid'    => $personId ?: null,
-            ':email'  => $email,
+            ':pid'    => $personId,
             ':ref'    => $externalReference,
             ':amount' => $amount,
         ]);
@@ -214,23 +216,29 @@ class Transaction extends BaseModel {
         ")->execute([':pid' => $personId, ':payid' => $paymentId]);
     }
 
-    /**
-     * Retorna transações aprovadas sem inscrição finalizada para um e-mail.
-     */
+    public function findPersonIdByEmail(string $email): ?int {
+        $stmt = $this->conn->prepare("SELECT id FROM persons WHERE email = :email LIMIT 1");
+        $stmt->execute([':email' => $email]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row ? (int) $row['id'] : null;
+    }
+
+   
     public function getPaidPendingRegistrations($email) {
         $sql = "SELECT t.payment_id, t.schedule_id, t.person_id,
-                       e.name AS event_name, s.scheduled_at
+                    e.name AS event_name, s.scheduled_at
                 FROM transactions t
-                JOIN schedules s ON t.schedule_id = s.id
-                JOIN events e    ON s.event_id    = e.id
-                WHERE t.payer_email    = :email
-                  AND t.payment_status = 'approved'
-                  AND s.scheduled_at  >= NOW()
-                  AND NOT EXISTS (
-                      SELECT 1 FROM anamnesis a
-                      JOIN events_subscribed es ON a.subscribed_id = es.id
-                      WHERE es.payment_id = t.payment_id
-                  )
+                INNER JOIN persons p          ON t.person_id    = p.id
+                JOIN schedules s              ON t.schedule_id  = s.id
+                JOIN events e                 ON s.event_id     = e.id
+                JOIN events_subscribed es     ON es.payment_id  = t.payment_id
+                WHERE p.email           = :email
+                AND t.payment_status  = 'approved'
+                AND s.scheduled_at   >= NOW()
+                AND es.status         = 'pending'
+                AND NOT EXISTS (
+                    SELECT 1 FROM anamnesis a WHERE a.subscribed_id = es.id
+                )
                 ORDER BY s.scheduled_at ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([':email' => $email]);
@@ -239,27 +247,28 @@ class Transaction extends BaseModel {
 
 
     public function deleteStalePendingTransactions(): int {
-        $minutes = (int) (1 ?? 60);
+        $minutes = (int) (60 ?? 60);
 
+        // 1. Delete stale pending transactions
         $stmt = $this->conn->prepare("
             DELETE FROM transactions
-            WHERE payment_status <> 'approved'
+            WHERE payment_status = 'pending'
             AND created_at <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
         ");
         $stmt->execute([':minutes' => $minutes]);
         $deleted = $stmt->rowCount();
 
-        // ✅ Delete temporary persons with no approved transaction
+        // ✅ Delete orphan persons — but only if older than X minutes
         $this->conn->prepare("
             DELETE FROM persons
             WHERE status = 'pending'
+            AND created_at <= DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
             AND id NOT IN (
                 SELECT DISTINCT person_id
                 FROM transactions
-                WHERE payment_status = 'approved'
-                    AND person_id IS NOT NULL
+                WHERE person_id IS NOT NULL
             )
-        ")->execute();
+        ")->execute([':minutes' => $minutes]);
 
         return $deleted;
     }

@@ -45,31 +45,58 @@ class AuthController {
     }
 
     public function validateCode(Request $request, Response $response) {
-        $data = $request->getParsedBody();
+        $data  = $request->getParsedBody();
         $email = $data['email'] ?? null;
-        $code = $data['code'] ?? null;
+        $code  = $data['code']  ?? null;
+        $nome  = $data['nome']  ?? null; // ✅ name from #user-name
 
         if (!$email || !$code) {
             return $this->jsonResponse($response, [
-                "status" => "erro", 
+                "status"   => "erro",
                 "mensagem" => "E-mail e código são obrigatórios"
             ], 400);
         }
 
-        // O Controller pergunta ao Model se o código é válido
         $isValid = $this->personModel->validateOTP($email, $code);
 
         if ($isValid) {
+            error_log("=== VALIDATE_CODE DEBUG ===");
+            error_log("nome recebido: '" . ($nome ?? 'NULL') . "'");
+            error_log("email: '{$email}'");
+            
+            if ($nome) {
+                $newId = $this->personModel->createTemporaryPerson($email, $nome);
+                error_log("✅ person criado/atualizado id={$newId}");
+            } else {
+                error_log("❌ NOME ESTÁ VAZIO — pessoa NÃO criada");
+            }
+            error_log("=== END DEBUG ===");
+            // ... rest
+    
             return $this->jsonResponse($response, [
-                "status" => "sucesso", 
+                "status"   => "sucesso",
                 "mensagem" => "Código validado com sucesso!"
             ]);
         }
 
         return $this->jsonResponse($response, [
-            "status" => "erro", 
+            "status"   => "erro",
             "mensagem" => "Código inválido ou expirado."
-        ], 401);
+        ], 400);
+    }
+
+
+    public function createTempPerson(Request $request, Response $response) {
+        $data  = $request->getParsedBody();
+        $email = $data['email'] ?? null;
+        $nome  = $data['nome']  ?? null;
+
+        if (!$email || !$nome) {
+            return $this->jsonResponse($response, ["status" => "erro"], 400);
+        }
+
+        $id = $this->personModel->createTemporaryPerson($email, $nome);
+        return $this->jsonResponse($response, ["status" => "sucesso", "id" => $id]);
     }
 
     public function generateValidationCode(Request $request, Response $response) {
