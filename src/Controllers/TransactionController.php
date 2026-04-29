@@ -46,8 +46,7 @@ class TransactionController {
                     if ($subStatus === 'confirmed') {
                         return $this->jsonResponse($response, [
                             'error'                  => 'ja_inscrito',
-                            'mensagem'               => 'Você já realizou a compra e a inscrição para este evento. Deseja realizar outra?',
-                            'pode_comprar_novamente' => true,
+                            'mensagem'               => 'Você já esta inscrito para este evento! e não pode realizar mais de uma inscrição para o mesmo evento com mesmo email!',
                         ], 409);
                     }
 
