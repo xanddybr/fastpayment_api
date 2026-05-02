@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Apr 29, 2026 at 06:07 AM
+-- Generation Time: May 02, 2026 at 03:54 AM
 -- Server version: 8.0.42-0ubuntu0.24.04.1
 -- PHP Version: 8.5.3
 
@@ -44,7 +44,9 @@ CREATE TABLE `anamnesis` (
 --
 
 INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `who_recomended`, `is_medium`, `religion_mention`, `is_tule_member`, `first_time`, `created_at`) VALUES
-(32, 46, 'Ok', 'Blz', 1, 'Protestante', 1, 1, '2026-04-29 05:46:40');
+(33, 47, 'blz', 'oi', 1, 'Judio', 1, 1, '2026-04-29 06:37:21'),
+(34, 48, 'Muitos, todos os dias encontro', 'Esposa', 1, 'Protestante', 1, 1, '2026-05-02 01:11:48'),
+(37, 52, 'ok', 'oi', 1, 'Universalista', 1, 1, '2026-05-02 02:11:45');
 
 -- --------------------------------------------------------
 
@@ -89,7 +91,9 @@ CREATE TABLE `events_subscribed` (
 --
 
 INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`, `status`, `created_at`) VALUES
-(46, 54, 27, '156886593272', 'confirmed', '2026-04-29 05:36:37');
+(47, 59, 27, '156888820208', 'confirmed', '2026-04-29 06:30:42'),
+(48, 59, 32, '156243948237', 'confirmed', '2026-04-29 23:19:51'),
+(52, 59, 33, '156568713423', 'confirmed', '2026-05-02 02:10:45');
 
 -- --------------------------------------------------------
 
@@ -135,7 +139,7 @@ CREATE TABLE `persons` (
 
 INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_person_id`, `created_at`) VALUES
 (8, 'Administrador', 'admin@gmail.com', '$2y$12$FK7PUR5nPfWiKcAReyK2M.okjaPAOb9IU9kBvX4bUGb4Sa9drmbX.', 'active', 1, '2026-02-13 16:17:54'),
-(54, 'Alex Souza', 'xanddybr@gmail.com', NULL, 'active', 2, '2026-04-29 05:36:00');
+(59, 'Alexandre Souza', 'xanddybr@gmail.com', NULL, 'active', 2, '2026-04-29 06:29:51');
 
 -- --------------------------------------------------------
 
@@ -160,7 +164,7 @@ CREATE TABLE `person_details` (
 
 INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone`, `street`, `number`, `neighborhood`, `city`) VALUES
 (28, 8, 'Analista de sistemas', '2198669260', NULL, NULL, 'Realengo', 'Rio de Janeiro'),
-(46, 54, 'Padeiro', '21986609260', NULL, NULL, 'Bangu', 'Rio de Janeiro');
+(47, 59, 'Pedreiro', '21986609260', NULL, NULL, 'Bangu', 'Rio de Janeiro');
 
 -- --------------------------------------------------------
 
@@ -197,6 +201,13 @@ CREATE TABLE `registered_codes` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `registered_codes`
+--
+
+INSERT INTO `registered_codes` (`id`, `email`, `code`, `status`, `created_at`) VALUES
+(102, 'xanddybr@gmail.como', '101058', 'pendente', '2026-05-02 01:54:25');
+
 -- --------------------------------------------------------
 
 --
@@ -220,9 +231,9 @@ CREATE TABLE `schedules` (
 --
 
 INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `duration_minutes`, `status`, `created_at`) VALUES
-(27, 15, 1, 17, 88, '2026-04-30 23:00:00', 60, 'available', '2026-03-18 02:21:54'),
-(32, 12, 1, 17, 90, '2026-04-30 13:00:00', 60, 'available', '2026-04-13 01:57:08'),
-(33, 14, 1, 17, 49, '2026-04-30 20:42:00', 360, 'available', '2026-04-21 07:18:34');
+(27, 15, 1, 17, 30, '2026-05-30 23:00:00', 60, 'available', '2026-03-18 02:21:54'),
+(32, 12, 1, 17, 30, '2026-05-30 13:00:00', 60, 'available', '2026-04-13 01:57:08'),
+(33, 14, 1, 17, 26, '2026-05-30 20:42:00', 360, 'available', '2026-04-21 07:18:34');
 
 -- --------------------------------------------------------
 
@@ -248,7 +259,9 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`id`, `preference_id`, `external_reference`, `schedule_id`, `person_id`, `payment_id`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
-(106, '2457271780-9b2e6033-0378-42c9-9bc6-6b139a8569b2', 'FP-1777440960-27', 27, 54, '156886593272', 'approved', 1.00, '2026-04-29 05:36:00', '2026-04-29 05:36:38');
+(107, '2457271780-f9a374b0-d9a8-4546-8316-ce8dc8ea4802', 'FP-1777444191-27', 27, 59, '156888820208', 'approved', 1.00, '2026-04-29 06:29:51', '2026-04-29 06:30:42'),
+(108, '2457271780-c2d4f40a-1c72-4f6b-9e89-c7c428dc3d79', 'FP-1777504777-32', 32, 59, '156243948237', 'approved', 2.00, '2026-04-29 23:19:37', '2026-04-29 23:19:51'),
+(112, '2457271780-cfb0818b-b6a3-41dc-a851-93f967311ad9', 'FP-1777687833-33', 33, 59, '156568713423', 'approved', 3.00, '2026-05-02 02:10:33', '2026-05-02 02:10:46');
 
 -- --------------------------------------------------------
 
@@ -389,7 +402,7 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `anamnesis`
 --
 ALTER TABLE `anamnesis`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `events`
@@ -401,7 +414,7 @@ ALTER TABLE `events`
 -- AUTO_INCREMENT for table `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
 -- AUTO_INCREMENT for table `event_types`
@@ -413,19 +426,19 @@ ALTER TABLE `event_types`
 -- AUTO_INCREMENT for table `persons`
 --
 ALTER TABLE `persons`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
 
 --
 -- AUTO_INCREMENT for table `person_details`
 --
 ALTER TABLE `person_details`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
 
 --
 -- AUTO_INCREMENT for table `registered_codes`
 --
 ALTER TABLE `registered_codes`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=105;
 
 --
 -- AUTO_INCREMENT for table `schedules`
@@ -437,7 +450,7 @@ ALTER TABLE `schedules`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=107;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=113;
 
 --
 -- AUTO_INCREMENT for table `types_person`
