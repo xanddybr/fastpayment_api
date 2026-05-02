@@ -82,6 +82,7 @@
     $app->post('/api/register/subscribers', \App\Controllers\RegistrationController::class . ':create');
     $app->get('/api/cron/codes-cleanup', \App\Controllers\AuthController::class . ':cleanupCodes');
     $app->post('/api/auth/create-temp-person', \App\Controllers\AuthController::class . ':createTempPerson');
+    $app->post('/api/payment/validate', \App\Controllers\TransactionController::class . ':validatePayment');
     
 
     // --- 5. ROTAS ADMINISTRATIVAS (PROTEGIDAS) ---

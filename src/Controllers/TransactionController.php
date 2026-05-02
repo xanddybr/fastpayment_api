@@ -26,7 +26,7 @@ class TransactionController {
             return $this->jsonResponse($response, ['error' => 'email e schedule_id são obrigatórios'], 400);
         }
 
-        $urlBase     = rtrim('https://3df4-2804-d41-ec16-4800-91b8-1a9-c8f4-8ad9.ngrok-free.app');
+        $urlBase = rtrim($_ENV['APP_URL'] ?? 'http://localhost:8080', '/');
         $externalRef = 'FP-' . time() . '-' . $scheduleId;
 
         try {
@@ -121,6 +121,40 @@ class TransactionController {
             return $this->jsonResponse($response, ['error' => $e->getMessage()], 500);
         }
     }
+
+    public function validatePayment(Request $request, Response $response) {
+        $data      = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
+        $paymentId = $data['payment_id'] ?? null;
+
+        if (!$paymentId) {
+            return $this->jsonResponse($response, ['error' => 'payment_id é obrigatório'], 400);
+        }
+
+        try {
+            $row = $this->transactionModel->validatePaymentById($paymentId);
+
+            if (!$row) {
+                return $this->jsonResponse($response, ['error' => 'Pagamento não encontrado ou não aprovado'], 404);
+            }
+
+            return $this->jsonResponse($response, [
+                'valid'               => true,
+                'subscription_status' => $row['subscription_status'],
+                'event'               => [
+                    'schedule_id'      => $row['schedule_id'],
+                    'event_name'       => $row['event_name'],
+                    'event_price'      => $row['event_price'],
+                    'type_name'        => $row['type_name'],
+                    'unit_name'        => $row['unit_name'],
+                    'scheduled_at'     => $row['scheduled_at'],
+                    'duration_minutes' => $row['duration_minutes'],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            error_log('VALIDATE_PAYMENT erro: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => 'Erro ao validar pagamento'], 500);
+        }
+}
 
  
     public function webhook(Request $request, Response $response): Response {

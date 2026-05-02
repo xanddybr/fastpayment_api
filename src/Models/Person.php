@@ -208,7 +208,8 @@ class Person extends BaseModel {
         return $code;
     }
 
-    public function createTemporaryPerson(string $email, string $fullName): int {
+    public function createTemporaryPerson(string $email, string $fullName, ?string $phone = null): int {
+        // 1. Upsert person
         $this->conn->prepare("
             INSERT INTO persons (full_name, email, status, type_person_id)
             VALUES (:name, :email, 'pending', 2)
@@ -217,7 +218,19 @@ class Person extends BaseModel {
                 full_name = VALUES(full_name)
         ")->execute([':name' => $fullName, ':email' => $email]);
 
-        return (int) $this->conn->lastInsertId();
+        $personId = (int) $this->conn->lastInsertId();
+
+        // ✅ Upsert phone in person_details (if provided)
+        if ($phone) {
+            $this->conn->prepare("
+                INSERT INTO person_details (person_id, phone)
+                VALUES (:pid, :phone)
+                ON DUPLICATE KEY UPDATE
+                    phone = VALUES(phone)
+            ")->execute([':pid' => $personId, ':phone' => $phone]);
+        }
+
+        return $personId;
     }
 
     public function deleteValidatedCodes(): int {

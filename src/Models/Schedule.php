@@ -87,13 +87,23 @@ class Schedule extends BaseModel {
 
    
     public function closeExpiredSchedules() {
-        $this->conn->prepare("
+         $stmt1 = $this->conn->prepare("
             UPDATE schedules
-            SET status    = 'unavailable',
-                vacancies = 0              
+            SET status = 'unavailable'
             WHERE scheduled_at <= NOW()
             AND status = 'available'
-        ")->execute();
+        ");
+        $stmt1->execute();
+        $closed = $stmt1->rowCount();
+
+        // 2. Marca como 'available' os eventos FUTUROS que estão fechados
+        $stmt2 = $this->conn->prepare("
+            UPDATE schedules
+            SET status = 'available'
+            WHERE scheduled_at > NOW()
+            AND status = 'unavailable'
+        ");
+        $stmt2->execute();
     }
     
 

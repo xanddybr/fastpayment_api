@@ -245,6 +245,36 @@ class Transaction extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function validatePaymentById(string $paymentId): ?array {
+        $stmt = $this->conn->prepare("
+            SELECT 
+                t.payment_id,
+                t.payment_status,
+                t.schedule_id,
+                s.scheduled_at,
+                s.duration_minutes,
+                e.name  AS event_name,
+                e.price AS event_price,
+                et.name AS type_name,
+                u.name  AS unit_name,
+                COALESCE(es.status, 'no_subscription') AS subscription_status,
+                es.id   AS subscribed_id
+            FROM transactions t
+            INNER JOIN schedules s    ON t.schedule_id  = s.id
+            INNER JOIN events e       ON s.event_id     = e.id
+            INNER JOIN event_types et ON s.event_type_id = et.id
+            INNER JOIN units u        ON s.unit_id      = u.id
+            LEFT JOIN events_subscribed es 
+                ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+            WHERE t.payment_id     = :payid
+            AND t.payment_status = 'approved'
+            LIMIT 1
+        ");
+        $stmt->execute([':payid' => $paymentId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
 
     public function deleteStalePendingTransactions(): int {
         $minutes = (int) (60 ?? 60);

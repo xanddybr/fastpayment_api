@@ -49,6 +49,7 @@ class AuthController {
         $email = $data['email'] ?? null;
         $code  = $data['code']  ?? null;
         $nome  = $data['nome']  ?? null; // ✅ name from #user-name
+        $phone = $data['phone'] ?? $data['telefone'] ?? null; // ✅ accept phone
 
         if (!$email || !$code) {
             return $this->jsonResponse($response, [
@@ -65,7 +66,7 @@ class AuthController {
             error_log("email: '{$email}'");
             
             if ($nome) {
-                $newId = $this->personModel->createTemporaryPerson($email, $nome);
+                $newId = $this->personModel->createTemporaryPerson($email, $nome, $phone);
                 error_log("✅ person criado/atualizado id={$newId}");
             } else {
                 error_log("❌ NOME ESTÁ VAZIO — pessoa NÃO criada");
