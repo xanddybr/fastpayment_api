@@ -1,4 +1,4 @@
-<?php
+    <?php
     require __DIR__ . '/../vendor/autoload.php';
 
     if (session_status() === PHP_SESSION_NONE) {
@@ -21,12 +21,14 @@
     $app->addBodyParsingMiddleware();
     $app->addRoutingMiddleware();
 
-    // --- DEFINIÇÃO DO MIDDLEWARE DE SESSÃO ---
+    // --- DEFINIÇÃO DO MIDDLEWARE DE SESSÃO (Adicione isso aqui) ---
     $adminMiddleware = function ($request, $handler) {
+        // Inicia a sessão se ainda não estiver aberta
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
+        // Verifica se o analista está logado
         if (!isset($_SESSION['user_id'])) {
             $response = new \Slim\Psr7\Response();
             $payload = json_encode(['error' => 'Sessão expirada. Faça login novamente.']);
@@ -36,30 +38,32 @@
                 ->withStatus(401);
         }
 
+        // Se estiver logado, segue para o Controller
         return $handler->handle($request);
     };
 
-    // Redirect helper /beta
+    // No index.php (API)
     $app->get('/beta', function ($request, $response) {
+        // Pega todos os parâmetros que o MP mandou (?status=approved...)
         $params = $request->getQueryParams();
         $queryString = http_build_query($params);
+        
+        // Manda de volta para o seu Vite local
         return $response
             ->withHeader('Location', 'http://localhost:5173/beta/?' . $queryString)
             ->withStatus(302);
     });
 
-    // Webhook MP
+    // A rota precisa ser IGUAL ao que você configurou no Mercado Pago
     $app->map(['POST', 'OPTIONS'],'/api/payment/webhook', function ($request, $response) {
         $controller = new \App\Controllers\TransactionController();
         return $controller->webhook($request, $response);
     });
-
     // --- 4. ROTAS PÚBLICAS ---
 
-    // ✅ Login/Logout agora prefixados com /api
-    $app->post('/api/login', \App\Controllers\AuthController::class . ':login');
+    $app->post('/login', \App\Controllers\AuthController::class . ':login');
 
-    $app->post('/api/logout', function ($request, $response) {
+    $app->post('/logout', function ($request, $response) {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -81,10 +85,12 @@
     $app->get('/api/cron/codes-cleanup', \App\Controllers\AuthController::class . ':cleanupCodes');
     $app->post('/api/auth/create-temp-person', \App\Controllers\AuthController::class . ':createTempPerson');
     $app->post('/api/payment/validate', \App\Controllers\TransactionController::class . ':validatePayment');
+    
 
     // --- 5. ROTAS ADMINISTRATIVAS (PROTEGIDAS) ---
-    // ✅ Grupo agora prefixado com /api/admin
-    $app->group('/api/admin', function ($group) {
+
+    // Defina seu $adminMiddleware aqui ou certifique-se que ele está acessível
+    $app->group('', function ($group) {
 
         $group->get('/auth/check', function (Request $request, Response $response) {
             if (isset($_SESSION['user_id'])) {
@@ -126,9 +132,9 @@
         $group->delete('/persons/{id:[0-9]+}', \App\Controllers\PersonController::class . ':remove');
         $group->patch('/persons/password-reset', \App\Controllers\PersonController::class . ':updatePassword');
 
-    })->add($adminMiddleware);
+    })->add($adminMiddleware); // Certifique-se que $adminMiddleware foi definido antes
 
-    // --- 6. MIDDLEWARE DE CORS E TRATAMENTO DE ERROS ---
+    // --- 6. MIDDLEWARE DE CORS E TRATAMENTO DE ERROS (FINAL DO ARQUIVO) ---
 
     $app->options('/{routes:.+}', function ($request, $response) {
         return $response;
@@ -138,14 +144,18 @@
 
     $app->add(function (Request $request, $handler) {
         $response = $handler->handle($request);
+        
+        // Identifica de onde vem a requisição
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
 
         return $response
-            ->withHeader('Access-Control-Allow-Origin', $origin)
-            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT, PATCH')
+            ->withHeader('Access-Control-Allow-Origin', $origin) // Permite dinamicamente
+            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT')
             ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
             ->withHeader('Access-Control-Allow-Credentials', 'true');
     });
+
+    // Responde imediatamente aos pre-flights do navegador
 
     // --- 7. RUN ---
     $app->run();
