@@ -3,37 +3,28 @@ namespace App\Services;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+use App\Contracts\Services\EmailServiceInterface;
 use App\Services\Templates\OtpEmailTemplate;
 
-class EmailService {
+class EmailService implements EmailServiceInterface
+{
+    public function __construct(
+        private string $host,
+        private string $username,
+        private string $password,
+        private int $port,
+        private string $fromName
+    ) {}
 
-    /**
-     * Sends the OTP verification email using the Mistura de Luz template.
-     */
-    public static function sendOTP($toEmail, $toName, $code) {
-        $mail = new PHPMailer(true);
+    public function sendOTP(string $toEmail, string $toName, string $code): bool
+    {
+        $mail = $this->buildMailer();
         try {
-            $mail->CharSet    = 'UTF-8';
-            $mail->isSMTP();
-            $mail->Host       = 'smtp.hostinger.com';
-            $mail->SMTPAuth   = true;
-            $mail->Username   = 'contato@misturadeluz.com';
-            $mail->Password   = 'Mistura#1';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-            $mail->Port       = 465;
-
-            $mail->setFrom('contato@misturadeluz.com', 'Mistura de Luz');
             $mail->addAddress($toEmail, $toName);
-
             $mail->isHTML(true);
-            $mail->Subject = "🔐 Seu código de verificação — Mistura de Luz";
-
-            // ✅ REQ-009: Beautiful HTML template
+            $mail->Subject = "🔐 Seu código de verificação — {$this->fromName}";
             $mail->Body    = OtpEmailTemplate::render($toName, $code);
-
-            // Plain text fallback for email clients that don't support HTML
-            $mail->AltBody = "Olá {$toName}, seu código de verificação é: {$code}. Válido por 5 minutos. Se não solicitou este código, ignore este e-mail.";
-
+            $mail->AltBody = "Olá {$toName}, seu código é: {$code}. Se não solicitou, ignore este e-mail.";
             return $mail->send();
         } catch (Exception $e) {
             error_log("Erro ao enviar OTP para {$toEmail}: " . $e->getMessage());
@@ -41,21 +32,12 @@ class EmailService {
         }
     }
 
-    public static function sendPaymentConfirmation($payerEmail, $eventData) {
-        $mail = new PHPMailer(true);
+    public function sendPaymentConfirmation(string $payerEmail, array $eventData): bool
+    {
+        $mail = $this->buildMailer();
         try {
-            $mail->isSMTP();
-            $mail->Host       = 'smtp.hostinger.com';
-            $mail->SMTPAuth   = true;
-            $mail->Username   = 'contato@misturadeluz.com';
-            $mail->Password   = 'Mistura#1';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-            $mail->Port       = 465;
-            $mail->setFrom('contato@misturadeluz.com', 'Mistura de Luz');
-            $mail->isHTML(true);
-
-            // Email to client
             $mail->addAddress($payerEmail);
+            $mail->isHTML(true);
             $mail->Subject = "Pagamento Confirmado: " . $eventData['name'];
             $mail->Body    = "
                 <h2>Sua vaga está garantida!</h2>
@@ -68,16 +50,14 @@ class EmailService {
             ";
             $mail->send();
 
-            // Email to admin
             $mail->clearAddresses();
-            $mail->addAddress('contato@misturadeluz.com', 'Admin Mistura');
+            $mail->addAddress($this->username, 'Admin');
             $mail->Subject = "NOVA VENDA: " . $eventData['name'];
             $mail->Body    = "
                 <h3>Nova vaga reservada!</h3>
                 <p><b>Evento:</b> {$eventData['name']}</p>
                 <p><b>Cliente:</b> {$payerEmail}</p>
                 <p><b>Valor:</b> R$ {$eventData['price']}</p>
-                <p>A vaga já foi automaticamente subtraída do sistema.</p>
             ";
             $mail->send();
 
@@ -86,5 +66,20 @@ class EmailService {
             error_log("Erro ao enviar e-mail de pagamento: " . $e->getMessage());
             return false;
         }
+    }
+
+    private function buildMailer(): PHPMailer
+    {
+        $mail = new PHPMailer(true);
+        $mail->CharSet    = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Host       = $this->host;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $this->username;
+        $mail->Password   = $this->password;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = $this->port;
+        $mail->setFrom($this->username, $this->fromName);
+        return $mail;
     }
 }

@@ -1,67 +1,56 @@
 <?php
 namespace App\Controllers;
 
+use App\Contracts\Repositories\EventTypeRepositoryInterface;
+use App\Utils\Slugger;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use App\Models\EventType;
-use App\Utils\Slugger;
-use Exception;
 
-class EventTypeController {
-
+class EventTypeController
+{
     use Slugger;
 
-    private $eventTypeModel;
+    public function __construct(private EventTypeRepositoryInterface $eventTypeRepo) {}
 
-    public function __construct() {
-        // Inicializa o model que já resolve a conexão sozinho
-        $this->eventTypeModel = new EventType();
-    }
-
-    public function list(Request $request, Response $response) {
+    public function list(Request $request, Response $response): Response
+    {
         try {
-            $types = $this->eventTypeModel->getAll();
-            return $this->jsonResponse($response, $types ?: []);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
+            return $this->json($response, $this->eventTypeRepo->getAll() ?: []);
+        } catch (\Exception $e) {
+            return $this->json($response, ['status' => 'erro', 'mensagem' => $e->getMessage()], 500);
         }
     }
 
-    public function store(Request $request, Response $response) {
+    public function store(Request $request, Response $response): Response
+    {
         try {
             $data = $request->getParsedBody();
             $name = $data['name'] ?? null;
 
             if (empty($name)) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Nome é obrigatório."], 400);
+                return $this->json($response, ['status' => 'erro', 'mensagem' => 'Nome é obrigatório.'], 400);
             }
 
-            // Usamos a conexão do Singleton para o Slugger
-            $slug = $this->generateUniqueSlug($name, 'event_types', $this->eventTypeModel->getConnection());
-
-            $this->eventTypeModel->create($name, $slug);
-
-            return $this->jsonResponse($response, ["status" => "sucesso", "mensagem" => "Tipo de evento criado."], 201);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
-        }
-    }
-
-    public function delete($request, $response, $args) {
-        $id = $args['id'];
-        try {
-            $typeModel = new \App\Models\EventType(); 
-            $typeModel->delete($id);
-
-            $response->getBody()->write(json_encode(["message" => "Excluído com sucesso"]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            $slug = $this->generateUniqueSlug($name, 'event_types', $this->eventTypeRepo->getConnection());
+            $this->eventTypeRepo->create($name, $slug);
+            return $this->json($response, ['status' => 'sucesso', 'mensagem' => 'Tipo de evento criado.'], 201);
         } catch (\Exception $e) {
-            $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            return $this->json($response, ['status' => 'erro', 'mensagem' => $e->getMessage()], 500);
         }
     }
 
-    private function jsonResponse(Response $response, $data, $status = 200) {
+    public function delete(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $this->eventTypeRepo->delete((int) $args['id']);
+            return $this->json($response, ['message' => 'Excluído com sucesso']);
+        } catch (\Exception $e) {
+            return $this->json($response, ['error' => $e->getMessage()], 400);
+        }
+    }
+
+    private function json(Response $response, mixed $data, int $status = 200): Response
+    {
         $response->getBody()->write(json_encode($data));
         return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }

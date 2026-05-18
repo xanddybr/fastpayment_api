@@ -1,79 +1,59 @@
 <?php
-
 namespace App\Controllers;
 
+use App\Contracts\Repositories\EventRepositoryInterface;
+use App\Utils\Slugger;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use App\Models\Event;
-use App\Utils\Slugger;
-use Exception;
 
-class EventController {
-
+class EventController
+{
     use Slugger;
-    
-    private $eventModel;
 
-    public function __construct() {
-        // Instancia o Model que já se conecta sozinho via Singleton
-        $this->eventModel = new Event();
-    }
-    
-    public function list(Request $request, Response $response) {
+    public function __construct(private EventRepositoryInterface $eventRepo) {}
+
+    public function list(Request $request, Response $response): Response
+    {
         try {
-            $events = $this->eventModel->getAll();
-            return $this->jsonResponse($response, $events ?: []);
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Erro ao listar eventos."], 500);
+            return $this->json($response, $this->eventRepo->getAll() ?: []);
+        } catch (\Exception $e) {
+            return $this->json($response, ['status' => 'erro', 'mensagem' => 'Erro ao listar eventos.'], 500);
         }
     }
 
-    public function store(Request $request, Response $response) {
+    public function store(Request $request, Response $response): Response
+    {
         try {
             $data = $request->getParsedBody();
-            
+
             if (empty($data['name']) || empty($data['price'])) {
-                return $this->jsonResponse($response, ["status" => "erro", "mensagem" => "Nome e preço são obrigatórios."], 400);
+                return $this->json($response, ['status' => 'erro', 'mensagem' => 'Nome e preço são obrigatórios.'], 400);
             }
 
-            // 1. GERAÇÃO DO SLUG (Regra de negócio/utilitário)
-            // Note: O Slugger agora usa a conexão do Singleton internamente
-            $slug = $this->generateUniqueSlug($data['name'], 'events', $this->eventModel->getConnection());
-
-            // 2. CHAMADA DO MODEL
-            $success = $this->eventModel->create($data['name'], $data['price'], $slug);
+            $slug    = $this->generateUniqueSlug($data['name'], 'events', $this->eventRepo->getConnection());
+            $success = $this->eventRepo->create($data['name'], (float) $data['price'], $slug);
 
             if ($success) {
-                return $this->jsonResponse($response, [
-                    "status" => "sucesso", 
-                    "mensagem" => "Evento criado com sucesso.",
-                    "slug" => $slug
-                ], 201);
+                return $this->json($response, ['status' => 'sucesso', 'mensagem' => 'Evento criado com sucesso.', 'slug' => $slug], 201);
             }
-
-            throw new Exception("Falha ao salvar no banco.");
-
-        } catch (Exception $e) {
-            return $this->jsonResponse($response, ["status" => "erro", "mensagem" => $e->getMessage()], 500);
+            throw new \Exception('Falha ao salvar no banco.');
+        } catch (\Exception $e) {
+            return $this->json($response, ['status' => 'erro', 'mensagem' => $e->getMessage()], 500);
         }
     }
-   
-    public function delete($request, $response, $args) {
-    $id = $args['id'];
-    try {
-        // Instancia localmente como você pontuou
-        $eventModel = new \App\Models\Event(); 
-        $eventModel->delete($id);
 
-        $response->getBody()->write(json_encode(["message" => "Excluído com sucesso"]));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-    } catch (\Exception $e) {
-        $response->getBody()->write(json_encode(["error" => $e->getMessage()]));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    public function delete(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $this->eventRepo->delete((int) $args['id']);
+            return $this->json($response, ['message' => 'Excluído com sucesso']);
+        } catch (\Exception $e) {
+            return $this->json($response, ['error' => $e->getMessage()], 400);
+        }
     }
-}
 
-    private function jsonResponse(Response $response, $data, $status = 200) {
+    private function json(Response $response, mixed $data, int $status = 200): Response
+    {
         $response->getBody()->write(json_encode($data));
         return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
