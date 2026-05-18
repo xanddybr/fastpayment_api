@@ -21,10 +21,6 @@ class ScheduleController
             }
         }
 
-        if (strtotime($data['scheduled_at']) < (time() + 3600)) {
-            return $this->json($response, ['error' => 'Agendamento requer 1h de antecedência.'], 400);
-        }
-
         try {
             $this->scheduleRepo->create([
                 'scheduled_at'     => $data['scheduled_at'],
