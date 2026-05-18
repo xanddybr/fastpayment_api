@@ -17,6 +17,4 @@ interface TransactionRepositoryInterface
     public function getPaidPendingRegistrations(string $email): array;
     public function validatePaymentById(string $paymentId): ?array;
     public function deleteStalePending(): int;
-    public function getTotalRevenue(): float;
-    public function getTransactionsReport(): array;
 }

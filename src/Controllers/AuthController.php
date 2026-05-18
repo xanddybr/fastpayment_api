@@ -2,16 +2,12 @@
 namespace App\Controllers;
 
 use App\Contracts\Services\AuthServiceInterface;
-use App\Contracts\Services\EmailServiceInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 class AuthController
 {
-    public function __construct(
-        private AuthServiceInterface $authService,
-        private EmailServiceInterface $emailService
-    ) {}
+    public function __construct(private AuthServiceInterface $authService) {}
 
     public function login(Request $request, Response $response): Response
     {
@@ -47,8 +43,7 @@ class AuthController
             return $this->json($response, ['status' => 'erro', 'mensagem' => 'E-mail é obrigatório'], 400);
         }
 
-        $code = $this->authService->generateValidationCode($email, $data['telefone'] ?? '');
-        $this->emailService->sendOTP($email, $nome, $code);
+        $this->authService->generateValidationCode($email, $data['telefone'] ?? '', $nome);
         return $this->json($response, ['status' => 'sucesso', 'mensagem' => 'Código de verificação enviado!']);
     }
 

@@ -1,13 +1,13 @@
 <?php
 namespace App\Controllers;
 
-use App\Services\PaymentService;
+use App\Contracts\Services\PaymentServiceInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 class TransactionController
 {
-    public function __construct(private PaymentService $paymentService) {}
+    public function __construct(private PaymentServiceInterface $paymentService) {}
 
     public function createPayment(Request $request, Response $response): Response
     {

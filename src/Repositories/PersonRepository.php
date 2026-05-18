@@ -3,9 +3,11 @@ namespace App\Repositories;
 
 use PDO;
 use Exception;
+use App\Contracts\Repositories\AuthRepositoryInterface;
 use App\Contracts\Repositories\PersonRepositoryInterface;
+use App\Contracts\Repositories\SubscriberRepositoryInterface;
 
-class PersonRepository extends BaseRepository implements PersonRepositoryInterface
+class PersonRepository extends BaseRepository implements PersonRepositoryInterface, AuthRepositoryInterface, SubscriberRepositoryInterface
 {
     public function findById(int $id): ?array
     {

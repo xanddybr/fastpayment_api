@@ -33,7 +33,16 @@ class Container
             \App\Contracts\Repositories\PersonRepositoryInterface::class =>
                 create(\App\Repositories\PersonRepository::class)->constructor(get(PDO::class)),
 
+            \App\Contracts\Repositories\AuthRepositoryInterface::class =>
+                create(\App\Repositories\PersonRepository::class)->constructor(get(PDO::class)),
+
+            \App\Contracts\Repositories\SubscriberRepositoryInterface::class =>
+                create(\App\Repositories\PersonRepository::class)->constructor(get(PDO::class)),
+
             \App\Contracts\Repositories\TransactionRepositoryInterface::class =>
+                create(\App\Repositories\TransactionRepository::class)->constructor(get(PDO::class)),
+
+            \App\Contracts\Repositories\PaymentReportRepositoryInterface::class =>
                 create(\App\Repositories\TransactionRepository::class)->constructor(get(PDO::class)),
 
             \App\Contracts\Repositories\ScheduleRepositoryInterface::class =>
@@ -65,11 +74,11 @@ class Container
 
             \App\Contracts\Services\AuthServiceInterface::class =>
                 create(\App\Services\AuthService::class)->constructor(
-                    get(\App\Contracts\Repositories\PersonRepositoryInterface::class),
+                    get(\App\Contracts\Repositories\AuthRepositoryInterface::class),
                     get(\App\Contracts\Services\EmailServiceInterface::class)
                 ),
 
-            \App\Services\PaymentService::class => function ($c) {
+            \App\Contracts\Services\PaymentServiceInterface::class => function ($c) {
                 return new \App\Services\PaymentService(
                     $c->get(\App\Contracts\Repositories\TransactionRepositoryInterface::class),
                     $c->get(\App\Contracts\Services\PaymentGatewayInterface::class),
@@ -79,8 +88,9 @@ class Container
 
             \App\Contracts\Services\RegistrationServiceInterface::class =>
                 create(\App\Services\RegistrationService::class)->constructor(
-                    get(\App\Contracts\Repositories\PersonRepositoryInterface::class),
+                    get(\App\Contracts\Repositories\SubscriberRepositoryInterface::class),
                     get(\App\Contracts\Repositories\TransactionRepositoryInterface::class),
+                    get(\App\Contracts\Repositories\PaymentReportRepositoryInterface::class),
                     get(PDO::class)
                 ),
 

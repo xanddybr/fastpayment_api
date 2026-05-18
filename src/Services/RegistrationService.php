@@ -3,15 +3,17 @@ namespace App\Services;
 
 use Exception;
 use PDO;
-use App\Contracts\Repositories\PersonRepositoryInterface;
+use App\Contracts\Repositories\PaymentReportRepositoryInterface;
+use App\Contracts\Repositories\SubscriberRepositoryInterface;
 use App\Contracts\Repositories\TransactionRepositoryInterface;
 use App\Contracts\Services\RegistrationServiceInterface;
 
 class RegistrationService implements RegistrationServiceInterface
 {
     public function __construct(
-        private PersonRepositoryInterface $personRepo,
+        private SubscriberRepositoryInterface $subscriberRepo,
         private TransactionRepositoryInterface $transactionRepo,
+        private PaymentReportRepositoryInterface $reportRepo,
         private PDO $conn
     ) {}
 
@@ -23,7 +25,7 @@ class RegistrationService implements RegistrationServiceInterface
 
         $this->conn->beginTransaction();
         try {
-            $personId = $this->personRepo->saveCompleteRegistration($data);
+            $personId = $this->subscriberRepo->saveCompleteRegistration($data);
             $this->transactionRepo->linkPersonToPayment($data['payment_id'], $personId);
 
             $stmt = $this->conn->prepare("
@@ -36,7 +38,7 @@ class RegistrationService implements RegistrationServiceInterface
                 throw new Exception('Inscrição não encontrada. O pagamento pode ainda estar sendo processado.');
             }
 
-            $this->personRepo->createAnamnesis($subscription['id'], $data);
+            $this->subscriberRepo->createAnamnesis($subscription['id'], $data);
             $this->transactionRepo->confirmSubscription($data['payment_id']);
 
             $this->conn->commit();
@@ -50,16 +52,16 @@ class RegistrationService implements RegistrationServiceInterface
 
     public function getAllSubscribers(): array
     {
-        return $this->personRepo->getAllSubscribers();
+        return $this->subscriberRepo->getAllSubscribers();
     }
 
     public function getTotalRevenue(): float
     {
-        return $this->transactionRepo->getTotalRevenue();
+        return $this->reportRepo->getTotalRevenue();
     }
 
     public function getPaymentHistory(): array
     {
-        return $this->transactionRepo->getTransactionsReport();
+        return $this->reportRepo->getTransactionsReport();
     }
 }

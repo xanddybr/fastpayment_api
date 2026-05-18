@@ -3,9 +3,10 @@ namespace App\Repositories;
 
 use PDO;
 use Exception;
+use App\Contracts\Repositories\PaymentReportRepositoryInterface;
 use App\Contracts\Repositories\TransactionRepositoryInterface;
 
-class TransactionRepository extends BaseRepository implements TransactionRepositoryInterface
+class TransactionRepository extends BaseRepository implements TransactionRepositoryInterface, PaymentReportRepositoryInterface
 {
     public function getEventDetailsBySchedule(int $scheduleId): ?array
     {

@@ -1,34 +1,34 @@
 <?php
 namespace App\Services;
 
-use App\Contracts\Repositories\PersonRepositoryInterface;
+use App\Contracts\Repositories\AuthRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\EmailServiceInterface;
 
 class AuthService implements AuthServiceInterface
 {
     public function __construct(
-        private PersonRepositoryInterface $personRepo,
+        private AuthRepositoryInterface $authRepo,
         private EmailServiceInterface $emailService
     ) {}
 
     public function login(string $email, string $password): ?array
     {
-        return $this->personRepo->authenticate($email, $password);
+        return $this->authRepo->authenticate($email, $password);
     }
 
-    public function generateValidationCode(string $email, string $phone): string
+    public function generateValidationCode(string $email, string $phone, string $name): void
     {
-        $code = $this->personRepo->createValidationCode($email, $phone);
-        return $code;
+        $code = $this->authRepo->createValidationCode($email, $phone);
+        $this->emailService->sendOTP($email, $name, $code);
     }
 
     public function validateCode(string $email, string $code, ?string $name, ?string $phone): bool
     {
-        $isValid = $this->personRepo->validateOTP($email, $code);
+        $isValid = $this->authRepo->validateOTP($email, $code);
 
         if ($isValid && $name) {
-            $this->personRepo->createTemporary($email, $name, $phone);
+            $this->authRepo->createTemporary($email, $name, $phone);
         }
 
         return $isValid;
@@ -36,11 +36,11 @@ class AuthService implements AuthServiceInterface
 
     public function createTempPerson(string $email, string $name): int
     {
-        return $this->personRepo->createTemporary($email, $name, null);
+        return $this->authRepo->createTemporary($email, $name, null);
     }
 
     public function cleanupCodes(): int
     {
-        return $this->personRepo->deleteValidatedCodes();
+        return $this->authRepo->deleteValidatedCodes();
     }
 }

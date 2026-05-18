@@ -1,43 +1,22 @@
 <?php
-
 namespace App\Models;
 
-use PDO;
+class Event extends BaseModel
+{
+    public function __construct(
+        public readonly int    $id,
+        public readonly string $name,
+        public readonly float  $price,
+        public readonly string $slug,
+    ) {}
 
-class Event extends BaseModel {
-    // Não precisa de construtor, o BaseModel já fornece $this->conn via Singleton
-
-    public function create($name, $price, $slug) {
-        $sql = "INSERT INTO events (name, price, slug) VALUES (:name, :price, :slug)";
-        $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([
-            ":name"  => $name,
-            ":price" => $price,
-            ":slug"  => $slug
-        ]);
-    }
-
-    public function getAll() {
-        return $this->conn->query("SELECT * FROM events ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function delete($id) {
-    try {
-        $stmt = $this->conn->prepare("DELETE FROM events WHERE id = :id");
-        $stmt->bindParam(":id", $id);
-        return $stmt->execute();
-    } catch (\PDOException $e) {
-        // Verifica se o erro é de integridade referencial (MySQL 1451)
-        if ($e->getCode() === '23000' || strpos($e->getMessage(), '1451') !== false) {
-            throw new \Exception("Esse registro não pode ser excluído, pois ele está relacionado a 1 ou mais agendamentos");
-        }
-        throw $e;
-    }
-}
-    
-    public function findById($id) {
-        $stmt = $this->conn->prepare("SELECT * FROM events WHERE id = :id");
-        $stmt->execute([':id' => $id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            id:    (int)   $data['id'],
+            name:          $data['name'],
+            price: (float) $data['price'],
+            slug:          $data['slug'],
+        );
     }
 }

@@ -4,8 +4,9 @@ namespace App\Services;
 use Exception;
 use App\Contracts\Repositories\TransactionRepositoryInterface;
 use App\Contracts\Services\PaymentGatewayInterface;
+use App\Contracts\Services\PaymentServiceInterface;
 
-class PaymentService
+class PaymentService implements PaymentServiceInterface
 {
     public function __construct(
         private TransactionRepositoryInterface $transactionRepo,
