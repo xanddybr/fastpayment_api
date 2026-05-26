@@ -27,6 +27,7 @@ class Database {
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_PERSISTENT         => true
                 ]);
+                self::$instance->exec("SET time_zone = '-03:00'");
             } catch (PDOException $e) {
                 throw new Exception("Erro de conexão: " . $e->getMessage());
             }

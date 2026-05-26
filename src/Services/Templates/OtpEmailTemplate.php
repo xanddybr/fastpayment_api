@@ -16,14 +16,6 @@ class OtpEmailTemplate {
      */
     public static function render(string $clientName, string $otpCode): string {
 
-        // ✅ HYBRID LOGO: base64 on localhost, URL on production
-        $logoPath = 'https://beta.misturadeluz.com/beta/images/logo.png';
-
-        if (file_exists($logoPath)) {
-            // localhost or server with file access — embed as base64
-            $logoSrc = 'https://beta.misturadeluz.com/beta/images/logo.png';
-        }
-
         $year = date('Y');
 
         return <<<HTML
@@ -49,7 +41,7 @@ class OtpEmailTemplate {
                     <!-- HEADER -->
                     <tr>
                         <td align="center" style="padding:48px 40px 32px;">
-                            <img src="https://beta.misturadeluz.com/beta/images/logo.png"
+                            <img src="https://agendabeta.misturadeluz.com/images/logo.png"
                                  alt="Mistura de Luz"
                                  width="230"
                                  style="display:block;margin:0 auto 20px auto;">

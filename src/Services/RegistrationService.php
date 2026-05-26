@@ -23,31 +23,39 @@ class RegistrationService implements RegistrationServiceInterface
             throw new \InvalidArgumentException('schedule_id e payment_id são obrigatórios.');
         }
 
+        // Fase 1: salva/atualiza a pessoa e vincula ao pagamento — sempre persiste
         $this->conn->beginTransaction();
         try {
             $personId = $this->subscriberRepo->saveCompleteRegistration($data);
             $this->transactionRepo->linkPersonToPayment($data['payment_id'], $personId);
-
-            $stmt = $this->conn->prepare("
-                SELECT id FROM events_subscribed WHERE payment_id = :payid LIMIT 1
-            ");
-            $stmt->execute([':payid' => $data['payment_id']]);
-            $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$subscription) {
-                throw new Exception('Inscrição não encontrada. O pagamento pode ainda estar sendo processado.');
-            }
-
-            $this->subscriberRepo->createAnamnesis($subscription['id'], $data);
-            $this->transactionRepo->confirmSubscription($data['payment_id']);
-
             $this->conn->commit();
-            return ['subscribed_id' => $subscription['id']];
-
         } catch (Exception $e) {
             if ($this->conn->inTransaction()) $this->conn->rollBack();
             throw $e;
         }
+
+        // Fase 2: conclui a inscrição (requer events_subscribed já criado pelo webhook)
+        $stmt = $this->conn->prepare("
+            SELECT id FROM events_subscribed WHERE payment_id = :payid LIMIT 1
+        ");
+        $stmt->execute([':payid' => $data['payment_id']]);
+        $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$subscription) {
+            throw new Exception('Inscrição não encontrada. O pagamento pode ainda estar sendo processado.');
+        }
+
+        $this->conn->beginTransaction();
+        try {
+            $this->subscriberRepo->createAnamnesis($subscription['id'], $data);
+            $this->transactionRepo->confirmSubscription($data['payment_id']);
+            $this->conn->commit();
+        } catch (Exception $e) {
+            if ($this->conn->inTransaction()) $this->conn->rollBack();
+            throw $e;
+        }
+
+        return ['subscribed_id' => $subscription['id']];
     }
 
     public function getAllSubscribers(): array

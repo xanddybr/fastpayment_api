@@ -108,11 +108,12 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
             INSERT INTO persons (full_name, email, status, type_person_id)
             VALUES (:name, :email, 'pending', 2)
             ON DUPLICATE KEY UPDATE
-                id        = LAST_INSERT_ID(id),
                 full_name = VALUES(full_name)
         ")->execute([':name' => $fullName, ':email' => $email]);
 
-        $personId = (int) $this->conn->lastInsertId();
+        $stmt = $this->conn->prepare("SELECT id FROM persons WHERE email = :email LIMIT 1");
+        $stmt->execute([':email' => $email]);
+        $personId = (int) $stmt->fetchColumn();
 
         if ($phone) {
             $this->conn->prepare("
@@ -138,9 +139,9 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
         }
 
         $stmt = $this->conn->prepare("
-            SELECT p.email
+            SELECT t.person_id, p.email
             FROM transactions t
-            INNER JOIN persons p ON t.person_id = p.id
+            LEFT JOIN persons p ON t.person_id = p.id
             WHERE t.payment_id = :payid
             LIMIT 1
         ");
@@ -148,21 +149,30 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$existing) {
-            throw new Exception('Pagamento não vinculado a um cliente.');
+            throw new Exception('Pagamento não encontrado.');
         }
 
-        $email = $existing['email'];
+        $email = $existing['email'] ?? ($data['email'] ?? null);
+
+        if (!$email) {
+            throw new Exception('E-mail não encontrado para este pagamento.');
+        }
 
         $this->conn->prepare("
             INSERT INTO persons (full_name, email, status, type_person_id)
             VALUES (:name, :email, 'active', 2)
             ON DUPLICATE KEY UPDATE
-                id        = LAST_INSERT_ID(id),
                 full_name = VALUES(full_name),
                 status    = 'active'
         ")->execute([':name' => $fullName, ':email' => $email]);
 
-        $personId = (int) $this->conn->lastInsertId();
+        $stmt2 = $this->conn->prepare("SELECT id FROM persons WHERE email = :email LIMIT 1");
+        $stmt2->execute([':email' => $email]);
+        $personId = (int) $stmt2->fetchColumn();
+
+        if (!$personId) {
+            throw new Exception('Erro ao identificar a pessoa após o cadastro.');
+        }
 
         $this->conn->prepare("
             INSERT INTO person_details (person_id, activity_professional, phone, neighborhood, city)
