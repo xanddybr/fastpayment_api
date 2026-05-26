@@ -10,7 +10,7 @@ interface TransactionRepositoryInterface
     public function createPending(int $scheduleId, ?int $personId, float $amount, string $externalRef): bool;
     public function updatePreferenceId(string $externalRef, string $preferenceId): bool;
     public function updatePaymentStatus(string $paymentId, string $externalRef, string $status): void;
-    public function confirmPayment(string $paymentId, string $externalRef): bool;
+    public function confirmPayment(string $paymentId, string $externalRef, ?string $payerEmail = null): bool;
     public function confirmSubscription(string $paymentId): void;
     public function linkPersonToPayment(string $paymentId, int $personId): void;
     public function findPersonIdByEmail(string $email): ?int;

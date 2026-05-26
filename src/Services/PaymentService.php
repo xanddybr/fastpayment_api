@@ -38,6 +38,10 @@ class PaymentService implements PaymentServiceInterface
             $personId = $this->transactionRepo->findPersonIdByEmail($email);
         }
 
+        if (!$personId) {
+            throw new \DomainException('pessoa_nao_encontrada');
+        }
+
         $externalRef = 'FP-' . time() . '-' . $scheduleId;
         $urlBase     = rtrim($this->appUrl, '/');
 
@@ -67,7 +71,7 @@ class PaymentService implements PaymentServiceInterface
             'external_reference' => $externalRef,
             'notification_url'   => $urlBase . '/api/payment/webhook',
             'auto_return'        => 'approved',
-            'back_urls'          => ['success' => $urlBase . '/beta'],
+            'back_urls'          => ['success' => $urlBase . '/'],
         ];
 
         $mpResponse = $this->gateway->createPreference($preferenceData);
@@ -89,8 +93,9 @@ class PaymentService implements PaymentServiceInterface
         $paymentData = $this->gateway->getPaymentDetails($paymentId);
         $extRef      = $paymentData['external_reference'] ?? null;
         $status      = $paymentData['status']             ?? null;
+        $payerEmail  = $paymentData['payer']['email']     ?? null;
 
-        error_log("WEBHOOK MP | status={$status} | extRef={$extRef}");
+        error_log("WEBHOOK MP | status={$status} | extRef={$extRef} | payer={$payerEmail}");
 
         if (!$extRef || !$status) {
             return;
@@ -99,7 +104,7 @@ class PaymentService implements PaymentServiceInterface
         $this->transactionRepo->updatePaymentStatus($paymentId, $extRef, $status);
 
         if ($status === 'approved') {
-            $result = $this->transactionRepo->confirmPayment($paymentId, $extRef);
+            $result = $this->transactionRepo->confirmPayment($paymentId, $extRef, $payerEmail);
             error_log("WEBHOOK confirmPayment | " . ($result ? 'OK' : 'JA_PROCESSADO'));
         }
     }

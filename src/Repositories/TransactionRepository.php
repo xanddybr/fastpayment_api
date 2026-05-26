@@ -89,7 +89,7 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
         ")->execute([':pid' => $paymentId, ':status' => $status, ':ref' => $externalRef]);
     }
 
-    public function confirmPayment(string $paymentId, string $externalRef): bool
+    public function confirmPayment(string $paymentId, string $externalRef, ?string $payerEmail = null): bool
     {
         try {
             $this->conn->beginTransaction();
@@ -112,6 +112,24 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
 
             if (!$tx) {
                 throw new Exception("Transação não encontrada: {$externalRef}");
+            }
+
+            // Se person_id está null na transação, tenta resolver pelo email do pagador (MP)
+            if ($tx['person_id'] === null && $payerEmail) {
+                $personStmt = $this->conn->prepare(
+                    "SELECT id FROM persons WHERE email = :email LIMIT 1"
+                );
+                $personStmt->execute([':email' => $payerEmail]);
+                $personRow = $personStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($personRow) {
+                    $tx['person_id'] = (int) $personRow['id'];
+                    $this->conn->prepare("
+                        UPDATE transactions SET person_id = :pid WHERE external_reference = :ref
+                    ")->execute([':pid' => $tx['person_id'], ':ref' => $externalRef]);
+                } else {
+                    error_log("confirmPayment: person não encontrado para email={$payerEmail}, extRef={$externalRef}");
+                }
             }
 
             $this->conn->prepare("

@@ -12,6 +12,8 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 $dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
 
+date_default_timezone_set('America/Sao_Paulo');
+
 $container = \App\Config\Container::build();
 AppFactory::setContainer($container);
 
@@ -39,7 +41,8 @@ $adminMiddleware = function (Request $request, $handler) {
 
 $app->get('/beta', function (Request $request, Response $response) {
     $queryString = http_build_query($request->getQueryParams());
-    return $response->withHeader('Location', 'http://localhost:5173/beta/?' . $queryString)->withStatus(302);
+    $base = $_ENV['APP_URL'] ?? '';
+    return $response->withHeader('Location', $base . '/?' . $queryString)->withStatus(302);
 });
 
 $app->map(['POST', 'OPTIONS'], '/api/payment/webhook', \App\Controllers\TransactionController::class . ':webhook');

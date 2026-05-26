@@ -59,10 +59,14 @@ class AuthController
             return $this->json($response, ['status' => 'erro', 'mensagem' => 'E-mail e código são obrigatórios'], 400);
         }
 
-        $isValid = $this->authService->validateCode($email, $code, $nome, $phone);
+        $personId = $this->authService->validateCode($email, $code, $nome, $phone);
 
-        if ($isValid) {
-            return $this->json($response, ['status' => 'sucesso', 'mensagem' => 'Código validado com sucesso!']);
+        if ($personId !== null) {
+            return $this->json($response, [
+                'status'    => 'sucesso',
+                'mensagem'  => 'Código validado com sucesso!',
+                'person_id' => $personId,
+            ]);
         }
 
         return $this->json($response, ['status' => 'erro', 'mensagem' => 'Código inválido ou expirado.'], 400);

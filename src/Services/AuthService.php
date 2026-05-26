@@ -23,15 +23,18 @@ class AuthService implements AuthServiceInterface
         $this->emailService->sendOTP($email, $name, $code);
     }
 
-    public function validateCode(string $email, string $code, ?string $name, ?string $phone): bool
+    public function validateCode(string $email, string $code, ?string $name, ?string $phone): ?int
     {
-        $isValid = $this->authRepo->validateOTP($email, $code);
-
-        if ($isValid && $name) {
-            $this->authRepo->createTemporary($email, $name, $phone);
+        if (!$this->authRepo->validateOTP($email, $code)) {
+            return null;
         }
 
-        return $isValid;
+        if ($name) {
+            return $this->authRepo->createTemporary($email, $name, $phone);
+        }
+
+        $person = $this->authRepo->findByEmail($email);
+        return $person ? (int) $person['id'] : null;
     }
 
     public function createTempPerson(string $email, string $name): int

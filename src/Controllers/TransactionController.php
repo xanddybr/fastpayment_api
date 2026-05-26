@@ -43,6 +43,12 @@ class TransactionController
                     'schedule_id' => $scheduleId,
                 ], 402);
             }
+            if ($code === 'pessoa_nao_encontrada') {
+                return $this->json($response, [
+                    'error'   => 'pessoa_nao_encontrada',
+                    'mensagem' => 'Complete seu cadastro antes de prosseguir com o pagamento.',
+                ], 422);
+            }
             return $this->json($response, ['error' => $e->getMessage()], 400);
 
         } catch (\Exception $e) {

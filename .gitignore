@@ -1,1 +1,8 @@
 *.env
+vendor/
+public/assets/
+public/images/
+public/index.html
+public/vite.svg
+*.local
+public/router.php
