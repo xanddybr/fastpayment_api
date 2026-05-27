@@ -193,15 +193,16 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
             SELECT t.payment_id, t.schedule_id, t.person_id,
                 e.name AS event_name, s.scheduled_at
             FROM transactions t
-            INNER JOIN persons p          ON t.person_id   = p.id
-            JOIN schedules s              ON t.schedule_id = s.id
-            JOIN events e                 ON s.event_id    = e.id
-            JOIN events_subscribed es     ON es.payment_id = t.payment_id
+            INNER JOIN persons p ON t.person_id = p.id
+            JOIN schedules s     ON t.schedule_id = s.id
+            JOIN events e        ON s.event_id    = e.id
+            LEFT JOIN events_subscribed es ON es.payment_id = t.payment_id COLLATE utf8mb4_unicode_ci
+            LEFT JOIN anamnesis a           ON a.subscribed_id = es.id
             WHERE p.email          = :email
             AND t.payment_status = 'approved'
             AND s.scheduled_at  >= NOW()
-            AND es.status        = 'pending'
-            AND NOT EXISTS (SELECT 1 FROM anamnesis a WHERE a.subscribed_id = es.id)
+            AND (es.id IS NULL OR es.status = 'pending')
+            AND a.subscribed_id IS NULL
             ORDER BY s.scheduled_at ASC
         ");
         $stmt->execute([':email' => $email]);

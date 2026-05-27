@@ -14,7 +14,7 @@ class TransactionController
         $data       = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
         $email      = $data['email']       ?? null;
         $scheduleId = (int) ($data['schedule_id'] ?? 0);
-        $personId   = $data['person_id']   ?? ($_SESSION['user_id'] ?? null);
+        $personId   = isset($data['person_id']) ? (int) $data['person_id'] : null;
         $forceNew   = !empty($data['force_new']);
 
         if (!$email || !$scheduleId) {

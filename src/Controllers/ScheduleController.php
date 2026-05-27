@@ -11,7 +11,6 @@ class ScheduleController
 
     public function store(Request $request, Response $response): Response
     {
-        date_default_timezone_set('America/Sao_Paulo');
         $data = $request->getParsedBody() ?? [];
 
         $required = ['scheduled_at', 'event_id', 'event_type_id', 'unit_id', 'vacancies', 'duration_minutes'];

@@ -22,11 +22,13 @@ class Container
                     $_ENV['DB_NAME'],
                     $_ENV['DB_PORT']
                 );
-                return new PDO($dsn, $_ENV['DB_USER'], $_ENV['DB_PASS'], [
+                $pdo = new PDO($dsn, $_ENV['DB_USER'], $_ENV['DB_PASS'], [
                     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_PERSISTENT         => true,
                 ]);
+                $pdo->exec("SET time_zone = '-03:00'");
+                return $pdo;
             },
 
             // Repositories

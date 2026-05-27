@@ -34,7 +34,7 @@ class RegistrationService implements RegistrationServiceInterface
             throw $e;
         }
 
-        // Fase 2: conclui a inscrição (requer events_subscribed já criado pelo webhook)
+        // Fase 2: garante que events_subscribed existe (webhook pode ter falhado ou atrasado)
         $stmt = $this->conn->prepare("
             SELECT id FROM events_subscribed WHERE payment_id = :payid LIMIT 1
         ");
@@ -42,7 +42,36 @@ class RegistrationService implements RegistrationServiceInterface
         $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$subscription) {
-            throw new Exception('Inscrição não encontrada. O pagamento pode ainda estar sendo processado.');
+            $txStmt = $this->conn->prepare("
+                SELECT schedule_id FROM transactions WHERE payment_id = :payid LIMIT 1
+            ");
+            $txStmt->execute([':payid' => $data['payment_id']]);
+            $tx = $txStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$tx) {
+                throw new Exception('Transação não encontrada para este pagamento.');
+            }
+
+            $this->conn->prepare("
+                INSERT INTO events_subscribed (person_id, schedule_id, payment_id, status)
+                VALUES (:pid, :sid, :payid, 'pending')
+            ")->execute([
+                ':pid'   => $personId,
+                ':sid'   => $tx['schedule_id'],
+                ':payid' => $data['payment_id'],
+            ]);
+
+            $this->conn->prepare("
+                UPDATE schedules SET vacancies = vacancies - 1
+                WHERE id = :sid AND vacancies > 0
+            ")->execute([':sid' => $tx['schedule_id']]);
+
+            $stmt->execute([':payid' => $data['payment_id']]);
+            $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$subscription) {
+                throw new Exception('Erro ao criar inscrição.');
+            }
         }
 
         $this->conn->beginTransaction();
