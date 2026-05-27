@@ -44,16 +44,21 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
 
     public function create(array $data): bool
     {
-        $hash = password_hash($data['password'], PASSWORD_BCRYPT);
+        $hash         = password_hash($data['password'], PASSWORD_BCRYPT);
+        $status       = $data['status']         ?? 'active';
+        $typePersonId = $data['type_person_id'] ?? 2;
+
         try {
             $stmt = $this->conn->prepare("
-                INSERT INTO persons (full_name, email, password, created_at)
-                VALUES (:full_name, :email, :password, NOW())
+                INSERT INTO persons (full_name, email, password, status, type_person_id, created_at)
+                VALUES (:full_name, :email, :password, :status, :type_person_id, NOW())
             ");
             return $stmt->execute([
-                ':full_name' => $data['full_name'],
-                ':email'     => $data['email'],
-                ':password'  => $hash,
+                ':full_name'      => $data['full_name'],
+                ':email'          => $data['email'],
+                ':password'       => $hash,
+                ':status'         => $status,
+                ':type_person_id' => $typePersonId,
             ]);
         } catch (\PDOException $e) {
             error_log('Erro ao criar pessoa: ' . $e->getMessage());
