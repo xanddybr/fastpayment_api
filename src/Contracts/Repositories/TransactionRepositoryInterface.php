@@ -15,6 +15,7 @@ interface TransactionRepositoryInterface
     public function linkPersonToPayment(string $paymentId, int $personId): void;
     public function findPersonIdByEmail(string $email): ?int;
     public function getPaidPendingRegistrations(string $email): array;
+    public function findRejectedByEmailAndSchedule(string $email, int $scheduleId): ?array;
     public function validatePaymentById(string $paymentId): ?array;
     public function deleteStalePending(): int;
 }

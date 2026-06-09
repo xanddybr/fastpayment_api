@@ -60,6 +60,8 @@ class PaymentService implements PaymentServiceInterface
             $this->transactionRepo->createPending($scheduleId, $personId, $price, $externalRef);
         }
 
+        $isLocalDev = !empty($_ENV['FRONT_URL']);
+
         $preferenceData = [
             'items' => [[
                 'title'       => mb_strcut($event['type_name'] . ': ' . $event['name'], 0, 250),
@@ -70,9 +72,12 @@ class PaymentService implements PaymentServiceInterface
             'payer'              => ['email' => $email],
             'external_reference' => $externalRef,
             'notification_url'   => $urlBase . '/api/payment/webhook',
-            'auto_return'        => 'approved',
             'back_urls'          => ['success' => $urlBase . '/'],
         ];
+
+        if (!$isLocalDev) {
+            $preferenceData['auto_return'] = 'approved';
+        }
 
         $mpResponse = $this->gateway->createPreference($preferenceData);
 
@@ -119,8 +124,31 @@ class PaymentService implements PaymentServiceInterface
         return $this->transactionRepo->getPaidPendingRegistrations($email);
     }
 
+    public function checkRejected(string $email, int $scheduleId): ?array
+    {
+        return $this->transactionRepo->findRejectedByEmailAndSchedule($email, $scheduleId);
+    }
+
     public function validatePayment(string $paymentId): ?array
     {
-        return $this->transactionRepo->validatePaymentById($paymentId);
+        $row = $this->transactionRepo->validatePaymentById($paymentId);
+
+        if (!$row) {
+            // Webhook pode ainda não ter chegado — consulta o MP diretamente
+            $mpData = $this->gateway->getPaymentDetails($paymentId);
+            $status = $mpData['status'] ?? null;
+            $extRef = $mpData['external_reference'] ?? null;
+
+            error_log("validatePayment sync | paymentId={$paymentId} | mp_status={$status} | extRef={$extRef}");
+
+            if ($status === 'approved' && $extRef) {
+                $payerEmail = $mpData['payer']['email'] ?? null;
+                $this->transactionRepo->updatePaymentStatus($paymentId, $extRef, $status);
+                $this->transactionRepo->confirmPayment($paymentId, $extRef, $payerEmail);
+                $row = $this->transactionRepo->validatePaymentById($paymentId);
+            }
+        }
+
+        return $row;
     }
 }

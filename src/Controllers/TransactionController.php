@@ -122,8 +122,9 @@ class TransactionController
 
     public function checkPayment(Request $request, Response $response): Response
     {
-        $data  = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
-        $email = trim($data['email'] ?? '');
+        $data       = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
+        $email      = trim($data['email'] ?? '');
+        $scheduleId = isset($data['schedule_id']) ? (int) $data['schedule_id'] : null;
 
         if (!$email) {
             return $this->json($response, ['has_paid' => false, 'error' => 'E-mail não fornecido'], 400);
@@ -131,10 +132,23 @@ class TransactionController
 
         try {
             $pendencias = $this->paymentService->checkPayment($email);
-            return $this->json($response, [
-                'has_paid'   => count($pendencias) > 0,
-                'pendencias' => $pendencias,
-            ]);
+
+            if (count($pendencias) > 0) {
+                return $this->json($response, ['has_paid' => true, 'pendencias' => $pendencias]);
+            }
+
+            if ($scheduleId) {
+                $rejected = $this->paymentService->checkRejected($email, $scheduleId);
+                if ($rejected) {
+                    return $this->json($response, [
+                        'has_paid' => false,
+                        'rejected' => true,
+                        'status'   => $rejected['payment_status'],
+                    ]);
+                }
+            }
+
+            return $this->json($response, ['has_paid' => false, 'rejected' => false]);
         } catch (\Exception $e) {
             return $this->json($response, ['error' => $e->getMessage()], 500);
         }

@@ -84,7 +84,7 @@ class Container
                 return new \App\Services\PaymentService(
                     $c->get(\App\Contracts\Repositories\TransactionRepositoryInterface::class),
                     $c->get(\App\Contracts\Services\PaymentGatewayInterface::class),
-                    $_ENV['APP_URL'] ?? 'http://localhost:8080'
+                    (!empty($_ENV['APP_URL_NGROK']) ? $_ENV['APP_URL_NGROK'] : ($_ENV['APP_URL'] ?? 'http://localhost:8080'))
                 );
             },
 

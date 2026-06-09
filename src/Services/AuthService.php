@@ -21,6 +21,10 @@ class AuthService implements AuthServiceInterface
     {
         $code = $this->authRepo->createValidationCode($email, $phone);
         $this->emailService->sendOTP($email, $name, $code);
+
+        if (!empty($_ENV['APP_URL_NGROK'])) {
+            error_log("[DEV] OTP para {$email}: {$code}");
+        }
     }
 
     public function validateCode(string $email, string $code, ?string $name, ?string $phone): ?int

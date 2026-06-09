@@ -164,7 +164,7 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
     public function confirmSubscription(string $paymentId): void
     {
         $this->conn->prepare("
-            UPDATE events_subscribed SET status = 'confirmed' WHERE payment_id = :payid
+            UPDATE events_subscribed SET status = 'confirmed', created_at = NOW() WHERE payment_id = :payid
         ")->execute([':payid' => $paymentId]);
     }
 
@@ -207,6 +207,22 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
         ");
         $stmt->execute([':email' => $email]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function findRejectedByEmailAndSchedule(string $email, int $scheduleId): ?array
+    {
+        $stmt = $this->conn->prepare("
+            SELECT t.payment_status, t.updated_at
+            FROM transactions t
+            INNER JOIN persons p ON t.person_id = p.id
+            WHERE p.email          = :email
+            AND t.schedule_id    = :sid
+            AND t.payment_status IN ('rejected', 'cancelled', 'refunded')
+            ORDER BY t.updated_at DESC
+            LIMIT 1
+        ");
+        $stmt->execute([':email' => $email, ':sid' => $scheduleId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
     public function validatePaymentById(string $paymentId): ?array
