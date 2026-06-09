@@ -7,5 +7,6 @@ interface PaymentServiceInterface
     public function processWebhook(string $paymentId, string $topic): void;
     public function cleanupPending(): int;
     public function checkPayment(string $email): array;
+    public function checkRejected(string $email, int $scheduleId): ?array;
     public function validatePayment(string $paymentId): ?array;
 }

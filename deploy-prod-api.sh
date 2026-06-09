@@ -23,11 +23,12 @@ rsync -avz --delete \
 echo "==> [PRODUÇÃO - API] Enviando .env.production como .env..."
 scp -P "${SSH_PORT}" .env.production "${SSH_TARGET}:${REMOTE_PATH}/.env"
 
-echo "==> [PRODUÇÃO - API] Instalando dependências no servidor..."
+echo "==> [PRODUÇÃO - API] Instalando dependências e ajustando permissões..."
 ssh -p "${SSH_PORT}" "${SSH_TARGET}" bash << EOF
   set -e
   cd "${REMOTE_PATH}"
   composer install --no-dev --optimize-autoloader --no-interaction
+  chmod 644 .env
   echo "==> API de produção online!"
 EOF
 
