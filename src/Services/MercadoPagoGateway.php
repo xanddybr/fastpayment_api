@@ -25,9 +25,21 @@ class MercadoPagoGateway implements PaymentGatewayInterface
             ],
             CURLOPT_SSL_VERIFYPEER => false,
         ]);
-        $result = curl_exec($ch);
+        $result    = curl_exec($ch);
+        $curlError = curl_error($ch);
         curl_close($ch);
-        return json_decode($result, true) ?? [];
+
+        if ($curlError) {
+            error_log("MP createPreference cURL error: {$curlError}");
+        }
+
+        $decoded = json_decode($result, true) ?? [];
+
+        if (!isset($decoded['id'])) {
+            error_log("MP createPreference falhou. Response: " . $result);
+        }
+
+        return $decoded;
     }
 
     public function getPaymentDetails(string $paymentId): array

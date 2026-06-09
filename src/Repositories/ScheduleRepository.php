@@ -29,6 +29,7 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
         return $this->conn->query("
             SELECT
                 s.id AS schedule_id,
+                s.event_id, s.unit_id, s.event_type_id,
                 e.name AS event_name, e.price AS event_price, e.slug AS event_slug,
                 et.name AS type_name, u.name AS unit_name,
                 s.scheduled_at, s.duration_minutes, s.vacancies, s.status
@@ -38,6 +39,29 @@ class ScheduleRepository extends BaseRepository implements ScheduleRepositoryInt
             JOIN event_types et ON s.event_type_id = et.id
             ORDER BY s.scheduled_at DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function update(int $id, array $data): bool
+    {
+        $stmt = $this->conn->prepare("
+            UPDATE schedules SET
+                unit_id          = :unit,
+                event_id         = :event,
+                event_type_id    = :type,
+                vacancies        = :vacancies,
+                scheduled_at     = :scheduled_at,
+                duration_minutes = :duration
+            WHERE id = :id
+        ");
+        return $stmt->execute([
+            ':unit'         => $data['unit_id'],
+            ':event'        => $data['event_id'],
+            ':type'         => $data['event_type_id'],
+            ':vacancies'    => $data['vacancies'],
+            ':scheduled_at' => $data['scheduled_at'],
+            ':duration'     => $data['duration_minutes'],
+            ':id'           => $id,
+        ]);
     }
 
     public function getAvailable(?string $eventSlug, ?string $typeSlug): array

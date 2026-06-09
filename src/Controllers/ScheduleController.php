@@ -72,6 +72,33 @@ class ScheduleController
         }
     }
 
+    public function update(Request $request, Response $response, array $args): Response
+    {
+        $id   = (int) $args['id'];
+        $data = $request->getParsedBody() ?? json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $required = ['scheduled_at', 'event_id', 'event_type_id', 'unit_id', 'vacancies', 'duration_minutes'];
+        foreach ($required as $field) {
+            if (!isset($data[$field]) || $data[$field] === '') {
+                return $this->json($response, ['error' => "Campo obrigatório ausente: {$field}"], 400);
+            }
+        }
+
+        try {
+            $this->scheduleRepo->update($id, [
+                'scheduled_at'     => $data['scheduled_at'],
+                'event_id'         => (int) $data['event_id'],
+                'unit_id'          => (int) $data['unit_id'],
+                'event_type_id'    => (int) $data['event_type_id'],
+                'vacancies'        => (int) $data['vacancies'],
+                'duration_minutes' => (int) $data['duration_minutes'],
+            ]);
+            return $this->json($response, ['success' => true, 'message' => 'Agendamento alterado com sucesso!']);
+        } catch (\Exception $e) {
+            return $this->json($response, ['error' => $e->getMessage()], 500);
+        }
+    }
+
     public function delete(Request $request, Response $response, array $args): Response
     {
         try {

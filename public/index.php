@@ -81,6 +81,7 @@ $app->group('/api/admin', function ($group) {
     $group->group('/schedules', function ($g) {
         $g->get('',                  \App\Controllers\ScheduleController::class . ':listAdminSchedules');
         $g->post('',                 \App\Controllers\ScheduleController::class . ':store');
+        $g->put('/{id:[0-9]+}',      \App\Controllers\ScheduleController::class . ':update');
         $g->delete('/{id:[0-9]+}',   \App\Controllers\ScheduleController::class . ':delete');
     });
 
