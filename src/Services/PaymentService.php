@@ -5,6 +5,7 @@ use Exception;
 use App\Contracts\Repositories\TransactionRepositoryInterface;
 use App\Contracts\Services\PaymentGatewayInterface;
 use App\Contracts\Services\PaymentServiceInterface;
+use App\Exceptions\PaymentBusinessException;
 
 class PaymentService implements PaymentServiceInterface
 {
@@ -26,10 +27,10 @@ class PaymentService implements PaymentServiceInterface
             if ($approved) {
                 $subStatus = $approved['subscription_status'] ?? null;
                 if ($subStatus === 'confirmed') {
-                    throw new \DomainException('ja_inscrito');
+                    throw new PaymentBusinessException('ja_inscrito');
                 }
                 if ($subStatus === 'pending') {
-                    throw new \DomainException('inscricao_pendente:' . $approved['payment_id']);
+                    throw new PaymentBusinessException('inscricao_pendente', ['payment_id' => $approved['payment_id']]);
                 }
             }
         }
@@ -39,7 +40,7 @@ class PaymentService implements PaymentServiceInterface
         }
 
         if (!$personId) {
-            throw new \DomainException('pessoa_nao_encontrada');
+            throw new PaymentBusinessException('pessoa_nao_encontrada');
         }
 
         $externalRef = 'FP-' . time() . '-' . $scheduleId;
@@ -58,6 +59,15 @@ class PaymentService implements PaymentServiceInterface
 
         if (!$pending) {
             $this->transactionRepo->createPending($scheduleId, $personId, $price, $externalRef);
+        }
+
+        // Evento gratuito: pula o gateway do Mercado Pago e confirma a "transação" direto,
+        // reaproveitando o mesmo caminho que o webhook usa para um pagamento aprovado.
+        if ($price <= 0.0) {
+            $paymentId = 'FREE-' . $externalRef;
+            $this->transactionRepo->updatePaymentStatus($paymentId, $externalRef, 'approved');
+            $this->transactionRepo->confirmPayment($paymentId, $externalRef, $email);
+            return ['payment_id' => $paymentId];
         }
 
         $isLocalDev = !empty($_ENV['FRONT_URL']);

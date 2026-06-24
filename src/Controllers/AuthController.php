@@ -43,7 +43,8 @@ class AuthController
             return $this->json($response, ['status' => 'erro', 'mensagem' => 'E-mail é obrigatório'], 400);
         }
 
-        $this->authService->generateValidationCode($email, $data['telefone'] ?? '', $nome);
+        $phone = $data['phone'] ?? $data['telefone'] ?? '';
+        $this->authService->generateValidationCode($email, $phone, $nome);
         return $this->json($response, ['status' => 'sucesso', 'mensagem' => 'Código de verificação enviado!']);
     }
 

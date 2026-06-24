@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Contracts\Services\PaymentServiceInterface;
+use App\Exceptions\PaymentBusinessException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -25,25 +26,22 @@ class TransactionController
             $result = $this->paymentService->createPayment($email, $scheduleId, $personId ? (int) $personId : null, $forceNew);
             return $this->json($response, $result);
 
-        } catch (\DomainException $e) {
-            $parts = explode(':', $e->getMessage(), 2);
-            $code  = $parts[0];
-
-            if ($code === 'ja_inscrito') {
+        } catch (PaymentBusinessException $e) {
+            if ($e->businessCode === 'ja_inscrito') {
                 return $this->json($response, [
                     'error'    => 'ja_inscrito',
                     'mensagem' => 'Você já esta inscrito para este evento!',
                 ], 409);
             }
-            if ($code === 'inscricao_pendente') {
+            if ($e->businessCode === 'inscricao_pendente') {
                 return $this->json($response, [
                     'error'      => 'inscricao_pendente',
                     'mensagem'   => 'Você já realizou o pagamento. Por favor, conclua sua inscrição.',
-                    'payment_id' => $parts[1] ?? null,
+                    'payment_id' => $e->context['payment_id'] ?? null,
                     'schedule_id' => $scheduleId,
                 ], 402);
             }
-            if ($code === 'pessoa_nao_encontrada') {
+            if ($e->businessCode === 'pessoa_nao_encontrada') {
                 return $this->json($response, [
                     'error'   => 'pessoa_nao_encontrada',
                     'mensagem' => 'Complete seu cadastro antes de prosseguir com o pagamento.',
