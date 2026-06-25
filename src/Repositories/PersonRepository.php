@@ -180,19 +180,23 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
         }
 
         $this->conn->prepare("
-            INSERT INTO person_details (person_id, activity_professional, phone, neighborhood, city)
-            VALUES (:pid, :prof, :phone, :neighborhood, :city)
+            INSERT INTO person_details (person_id, activity_professional, phone, street, neighborhood, city, birth_date)
+            VALUES (:pid, :prof, :phone, :street, :neighborhood, :city, :birth_date)
             ON DUPLICATE KEY UPDATE
                 activity_professional = VALUES(activity_professional),
                 phone                 = VALUES(phone),
+                street                = VALUES(street),
                 neighborhood          = VALUES(neighborhood),
-                city                  = VALUES(city)
+                city                  = VALUES(city),
+                birth_date            = VALUES(birth_date)
         ")->execute([
             ':pid'          => $personId,
             ':prof'         => $data['activity_professional'] ?? null,
             ':phone'        => $phone,
+            ':street'       => $data['street']       ?? null,
             ':neighborhood' => $data['neighborhood'] ?? null,
             ':city'         => $data['city']         ?? null,
+            ':birth_date'   => $data['birth_date']    ?? null,
         ]);
 
         return $personId;
@@ -203,9 +207,9 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
         $this->conn->prepare("
             INSERT INTO anamnesis
                 (subscribed_id, course_reason, who_recomended, is_medium,
-                 religion_mention, is_tule_member, first_time)
+                 religion_mention, is_tule_member, first_time, already_student)
             VALUES
-                (:subid, :reason, :who, :medium, :rel_mention, :tule, :first)
+                (:subid, :reason, :who, :medium, :rel_mention, :tule, :first, :student)
         ")->execute([
             ':subid'       => $subscribedId,
             ':reason'      => $data['course_reason']      ?? null,
@@ -214,6 +218,7 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
             ':rel_mention' => $data['religion_mention']   ?? null,
             ':tule'        => $this->toBool($data['is_tule_member'] ?? 0),
             ':first'       => $this->toBool($data['first_time']     ?? 0),
+            ':student'     => $this->toBool($data['already_student'] ?? 0),
         ]);
     }
 
@@ -224,7 +229,7 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
                 p.id AS person_id,
                 COALESCE(p.full_name, 'Aguardando inscrição') AS full_name,
                 COALESCE(p.email, '-') AS email,
-                pd.phone, pd.activity_professional, pd.city, pd.neighborhood,
+                pd.phone, pd.activity_professional, pd.city, pd.neighborhood, pd.street, pd.birth_date,
                 es.id AS subscribed_id, es.created_at,
                 es.status AS enrollment_status,
                 e.name AS event_name, e.price AS valor_evento,
@@ -234,7 +239,7 @@ class PersonRepository extends BaseRepository implements PersonRepositoryInterfa
                 p.email AS payer_email,
                 t.payment_status, t.created_at AS createdPay,
                 a.course_reason, a.who_recomended, a.religion_mention,
-                a.is_medium, a.is_tule_member, a.first_time
+                a.is_medium, a.is_tule_member, a.first_time, a.already_student
             FROM events_subscribed es
             LEFT JOIN persons p         ON es.person_id    = p.id
             LEFT JOIN person_details pd ON pd.person_id    = p.id
