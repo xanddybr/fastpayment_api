@@ -4,7 +4,7 @@ set -e
 SSH_USER="u967889760"
 SSH_HOST="82.112.247.211"
 SSH_PORT="65002"
-REMOTE_PATH="domains/misturadeluz.com/public_html/agendabeta/api"
+REMOTE_PATH="domains/misturadeluz.com/public_html/agenda/api"
 SSH_TARGET="${SSH_USER}@${SSH_HOST}"
 
 echo "==> [API] Enviando arquivos para o servidor..."
@@ -21,7 +21,7 @@ rsync -avz --delete \
   ./ "${SSH_TARGET}:${REMOTE_PATH}/"
 
 echo "==> [API] Enviando .env de produção..."
-scp -P "${SSH_PORT}" env.beta "${SSH_TARGET}:${REMOTE_PATH}/.env"
+scp -P "${SSH_PORT}" "${SSH_TARGET}:${REMOTE_PATH}/.env"
 
 echo "==> [API] Instalando dependencias e ajustando permissoes..."
 ssh -p "${SSH_PORT}" "${SSH_TARGET}" bash << EOF
