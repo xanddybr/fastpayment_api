@@ -5,3 +5,4 @@ public/index.html
 public/vite.svg
 *.local
 public/router.php
+.env

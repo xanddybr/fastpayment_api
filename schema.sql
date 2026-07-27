@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 02, 2026 at 03:54 AM
--- Server version: 8.0.42-0ubuntu0.24.04.1
--- PHP Version: 8.5.3
+-- Tempo de geração: 27-Jul-2026 às 09:39
+-- Versão do servidor: 8.0.46-0ubuntu0.24.04.3
+-- versão do PHP: 8.5.8
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,29 +18,29 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `u967889760_fastbeta`
+-- Base de dados: `u967889760_fastpayment`
 --
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `anamnesis`
+-- Estrutura da tabela `anamnesis`
 --
 
 CREATE TABLE `anamnesis` (
   `id` int UNSIGNED NOT NULL,
   `subscribed_id` int UNSIGNED NOT NULL,
-  `course_reason` text COLLATE utf8mb4_unicode_ci,
+  `course_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `who_recomended` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_medium` int DEFAULT NULL,
-  `religion_mention` text COLLATE utf8mb4_unicode_ci,
+  `religion_mention` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_tule_member` tinyint(1) DEFAULT '0',
   `first_time` tinyint(1) DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `anamnesis`
+-- Extraindo dados da tabela `anamnesis`
 --
 
 INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `who_recomended`, `is_medium`, `religion_mention`, `is_tule_member`, `first_time`, `created_at`) VALUES
@@ -51,7 +51,7 @@ INSERT INTO `anamnesis` (`id`, `subscribed_id`, `course_reason`, `who_recomended
 -- --------------------------------------------------------
 
 --
--- Table structure for table `events`
+-- Estrutura da tabela `events`
 --
 
 CREATE TABLE `events` (
@@ -63,7 +63,7 @@ CREATE TABLE `events` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `events`
+-- Extraindo dados da tabela `events`
 --
 
 INSERT INTO `events` (`id`, `name`, `description`, `price`, `slug`) VALUES
@@ -74,7 +74,7 @@ INSERT INTO `events` (`id`, `name`, `description`, `price`, `slug`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `events_subscribed`
+-- Estrutura da tabela `events_subscribed`
 --
 
 CREATE TABLE `events_subscribed` (
@@ -83,11 +83,11 @@ CREATE TABLE `events_subscribed` (
   `schedule_id` int UNSIGNED NOT NULL,
   `payment_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT NULL
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `events_subscribed`
+-- Extraindo dados da tabela `events_subscribed`
 --
 
 INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`, `status`, `created_at`) VALUES
@@ -98,7 +98,7 @@ INSERT INTO `events_subscribed` (`id`, `person_id`, `schedule_id`, `payment_id`,
 -- --------------------------------------------------------
 
 --
--- Table structure for table `event_types`
+-- Estrutura da tabela `event_types`
 --
 
 CREATE TABLE `event_types` (
@@ -109,7 +109,7 @@ CREATE TABLE `event_types` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `event_types`
+-- Extraindo dados da tabela `event_types`
 --
 
 INSERT INTO `event_types` (`id`, `name`, `description`, `slug`) VALUES
@@ -120,7 +120,7 @@ INSERT INTO `event_types` (`id`, `name`, `description`, `slug`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `persons`
+-- Estrutura da tabela `persons`
 --
 
 CREATE TABLE `persons` (
@@ -134,7 +134,7 @@ CREATE TABLE `persons` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `persons`
+-- Extraindo dados da tabela `persons`
 --
 
 INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_person_id`, `created_at`) VALUES
@@ -144,7 +144,7 @@ INSERT INTO `persons` (`id`, `full_name`, `email`, `password`, `status`, `type_p
 -- --------------------------------------------------------
 
 --
--- Table structure for table `person_details`
+-- Estrutura da tabela `person_details`
 --
 
 CREATE TABLE `person_details` (
@@ -159,7 +159,7 @@ CREATE TABLE `person_details` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `person_details`
+-- Extraindo dados da tabela `person_details`
 --
 
 INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone`, `street`, `number`, `neighborhood`, `city`) VALUES
@@ -169,7 +169,7 @@ INSERT INTO `person_details` (`id`, `person_id`, `activity_professional`, `phone
 -- --------------------------------------------------------
 
 --
--- Table structure for table `phinxlog`
+-- Estrutura da tabela `phinxlog`
 --
 
 CREATE TABLE `phinxlog` (
@@ -181,7 +181,7 @@ CREATE TABLE `phinxlog` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `phinxlog`
+-- Extraindo dados da tabela `phinxlog`
 --
 
 INSERT INTO `phinxlog` (`version`, `migration_name`, `start_time`, `end_time`, `breakpoint`) VALUES
@@ -190,7 +190,7 @@ INSERT INTO `phinxlog` (`version`, `migration_name`, `start_time`, `end_time`, `
 -- --------------------------------------------------------
 
 --
--- Table structure for table `registered_codes`
+-- Estrutura da tabela `registered_codes`
 --
 
 CREATE TABLE `registered_codes` (
@@ -202,7 +202,7 @@ CREATE TABLE `registered_codes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `registered_codes`
+-- Extraindo dados da tabela `registered_codes`
 --
 
 INSERT INTO `registered_codes` (`id`, `email`, `code`, `status`, `created_at`) VALUES
@@ -211,7 +211,7 @@ INSERT INTO `registered_codes` (`id`, `email`, `code`, `status`, `created_at`) V
 -- --------------------------------------------------------
 
 --
--- Table structure for table `schedules`
+-- Estrutura da tabela `schedules`
 --
 
 CREATE TABLE `schedules` (
@@ -227,7 +227,7 @@ CREATE TABLE `schedules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `schedules`
+-- Extraindo dados da tabela `schedules`
 --
 
 INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancies`, `scheduled_at`, `duration_minutes`, `status`, `created_at`) VALUES
@@ -238,7 +238,7 @@ INSERT INTO `schedules` (`id`, `event_id`, `event_type_id`, `unit_id`, `vacancie
 -- --------------------------------------------------------
 
 --
--- Table structure for table `transactions`
+-- Estrutura da tabela `transactions`
 --
 
 CREATE TABLE `transactions` (
@@ -255,7 +255,7 @@ CREATE TABLE `transactions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `transactions`
+-- Extraindo dados da tabela `transactions`
 --
 
 INSERT INTO `transactions` (`id`, `preference_id`, `external_reference`, `schedule_id`, `person_id`, `payment_id`, `payment_status`, `amount`, `created_at`, `updated_at`) VALUES
@@ -266,7 +266,7 @@ INSERT INTO `transactions` (`id`, `preference_id`, `external_reference`, `schedu
 -- --------------------------------------------------------
 
 --
--- Table structure for table `types_person`
+-- Estrutura da tabela `types_person`
 --
 
 CREATE TABLE `types_person` (
@@ -276,7 +276,7 @@ CREATE TABLE `types_person` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `types_person`
+-- Extraindo dados da tabela `types_person`
 --
 
 INSERT INTO `types_person` (`id`, `name`, `created_at`) VALUES
@@ -286,7 +286,7 @@ INSERT INTO `types_person` (`id`, `name`, `created_at`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `units`
+-- Estrutura da tabela `units`
 --
 
 CREATE TABLE `units` (
@@ -296,7 +296,7 @@ CREATE TABLE `units` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `units`
+-- Extraindo dados da tabela `units`
 --
 
 INSERT INTO `units` (`id`, `name`, `slug`) VALUES
@@ -304,25 +304,25 @@ INSERT INTO `units` (`id`, `name`, `slug`) VALUES
 (18, 'ON-LINE', 'on-line');
 
 --
--- Indexes for dumped tables
+-- Índices para tabelas despejadas
 --
 
 --
--- Indexes for table `anamnesis`
+-- Índices para tabela `anamnesis`
 --
 ALTER TABLE `anamnesis`
   ADD PRIMARY KEY (`id`),
   ADD KEY `fk_anamnesis_subscription` (`subscribed_id`);
 
 --
--- Indexes for table `events`
+-- Índices para tabela `events`
 --
 ALTER TABLE `events`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `slug` (`slug`);
 
 --
--- Indexes for table `events_subscribed`
+-- Índices para tabela `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
   ADD PRIMARY KEY (`id`),
@@ -330,13 +330,13 @@ ALTER TABLE `events_subscribed`
   ADD KEY `fk_subscribed_schedule` (`schedule_id`);
 
 --
--- Indexes for table `event_types`
+-- Índices para tabela `event_types`
 --
 ALTER TABLE `event_types`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `persons`
+-- Índices para tabela `persons`
 --
 ALTER TABLE `persons`
   ADD PRIMARY KEY (`id`),
@@ -344,7 +344,7 @@ ALTER TABLE `persons`
   ADD KEY `type_person_id` (`type_person_id`);
 
 --
--- Indexes for table `person_details`
+-- Índices para tabela `person_details`
 --
 ALTER TABLE `person_details`
   ADD PRIMARY KEY (`id`),
@@ -352,19 +352,19 @@ ALTER TABLE `person_details`
   ADD KEY `person_id` (`person_id`);
 
 --
--- Indexes for table `phinxlog`
+-- Índices para tabela `phinxlog`
 --
 ALTER TABLE `phinxlog`
   ADD PRIMARY KEY (`version`);
 
 --
--- Indexes for table `registered_codes`
+-- Índices para tabela `registered_codes`
 --
 ALTER TABLE `registered_codes`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `schedules`
+-- Índices para tabela `schedules`
 --
 ALTER TABLE `schedules`
   ADD PRIMARY KEY (`id`),
@@ -373,7 +373,7 @@ ALTER TABLE `schedules`
   ADD KEY `fk_schedules_type` (`event_type_id`);
 
 --
--- Indexes for table `transactions`
+-- Índices para tabela `transactions`
 --
 ALTER TABLE `transactions`
   ADD PRIMARY KEY (`id`),
@@ -383,118 +383,118 @@ ALTER TABLE `transactions`
   ADD KEY `fk_transactions_person` (`person_id`);
 
 --
--- Indexes for table `types_person`
+-- Índices para tabela `types_person`
 --
 ALTER TABLE `types_person`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `units`
+-- Índices para tabela `units`
 --
 ALTER TABLE `units`
   ADD PRIMARY KEY (`id`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT de tabelas despejadas
 --
 
 --
--- AUTO_INCREMENT for table `anamnesis`
+-- AUTO_INCREMENT de tabela `anamnesis`
 --
 ALTER TABLE `anamnesis`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
--- AUTO_INCREMENT for table `events`
+-- AUTO_INCREMENT de tabela `events`
 --
 ALTER TABLE `events`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
--- AUTO_INCREMENT for table `events_subscribed`
+-- AUTO_INCREMENT de tabela `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
--- AUTO_INCREMENT for table `event_types`
+-- AUTO_INCREMENT de tabela `event_types`
 --
 ALTER TABLE `event_types`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
--- AUTO_INCREMENT for table `persons`
+-- AUTO_INCREMENT de tabela `persons`
 --
 ALTER TABLE `persons`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
 
 --
--- AUTO_INCREMENT for table `person_details`
+-- AUTO_INCREMENT de tabela `person_details`
 --
 ALTER TABLE `person_details`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
 
 --
--- AUTO_INCREMENT for table `registered_codes`
+-- AUTO_INCREMENT de tabela `registered_codes`
 --
 ALTER TABLE `registered_codes`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=105;
 
 --
--- AUTO_INCREMENT for table `schedules`
+-- AUTO_INCREMENT de tabela `schedules`
 --
 ALTER TABLE `schedules`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
--- AUTO_INCREMENT for table `transactions`
+-- AUTO_INCREMENT de tabela `transactions`
 --
 ALTER TABLE `transactions`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=113;
 
 --
--- AUTO_INCREMENT for table `types_person`
+-- AUTO_INCREMENT de tabela `types_person`
 --
 ALTER TABLE `types_person`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT for table `units`
+-- AUTO_INCREMENT de tabela `units`
 --
 ALTER TABLE `units`
   MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
--- Constraints for dumped tables
+-- Restrições para despejos de tabelas
 --
 
 --
--- Constraints for table `anamnesis`
+-- Limitadores para a tabela `anamnesis`
 --
 ALTER TABLE `anamnesis`
   ADD CONSTRAINT `fk_anamnesis_subscription` FOREIGN KEY (`subscribed_id`) REFERENCES `events_subscribed` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `events_subscribed`
+-- Limitadores para a tabela `events_subscribed`
 --
 ALTER TABLE `events_subscribed`
   ADD CONSTRAINT `fk_subscribed_person` FOREIGN KEY (`person_id`) REFERENCES `persons` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_subscribed_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `persons`
+-- Limitadores para a tabela `persons`
 --
 ALTER TABLE `persons`
   ADD CONSTRAINT `persons_ibfk_1` FOREIGN KEY (`type_person_id`) REFERENCES `types_person` (`id`);
 
 --
--- Constraints for table `person_details`
+-- Limitadores para a tabela `person_details`
 --
 ALTER TABLE `person_details`
   ADD CONSTRAINT `person_details_ibfk_1` FOREIGN KEY (`person_id`) REFERENCES `persons` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `schedules`
+-- Limitadores para a tabela `schedules`
 --
 ALTER TABLE `schedules`
   ADD CONSTRAINT `fk_schedules_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE RESTRICT,
@@ -505,7 +505,7 @@ ALTER TABLE `schedules`
   ADD CONSTRAINT `schedules_ibfk_3` FOREIGN KEY (`unit_id`) REFERENCES `units` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `transactions`
+-- Limitadores para a tabela `transactions`
 --
 ALTER TABLE `transactions`
   ADD CONSTRAINT `fk_transactions_person` FOREIGN KEY (`person_id`) REFERENCES `persons` (`id`) ON DELETE SET NULL,
