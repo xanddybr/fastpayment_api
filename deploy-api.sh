@@ -20,7 +20,7 @@ rsync -avz --delete \
   -e "ssh -p ${SSH_PORT}" \
   ./ "${SSH_TARGET}:${REMOTE_PATH}/"
 
-echo "==> [API] Enviando env.beta como .env de produção..."
+echo "==> [API] Enviando .env de produção..."
 scp -P "${SSH_PORT}" env.beta "${SSH_TARGET}:${REMOTE_PATH}/.env"
 
 echo "==> [API] Instalando dependencias e ajustando permissoes..."
@@ -33,4 +33,4 @@ ssh -p "${SSH_PORT}" "${SSH_TARGET}" bash << EOF
 EOF
 
 echo ""
-echo "  API: https://agendabeta.misturadeluz.com/api"
+echo "  API: https://agenda.misturadeluz.com/api"
